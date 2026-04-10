@@ -1,0 +1,133 @@
+{
+  "dataset": "cwru",
+  "records": [
+    {
+      "filename": "normal_0.mat",
+      "class": "normal",
+      "load_hp": 0,
+      "condition": "healthy",
+      "source_id": 97,
+      "subset_group": "normal"
+    },
+    {
+      "filename": "normal_1.mat",
+      "class": "normal",
+      "load_hp": 1,
+      "condition": "healthy",
+      "source_id": 98,
+      "subset_group": "normal"
+    },
+    {
+      "filename": "normal_2.mat",
+      "class": "normal",
+      "load_hp": 2,
+      "condition": "healthy",
+      "source_id": 99,
+      "subset_group": "normal"
+    },
+    {
+      "filename": "normal_3.mat",
+      "class": "normal",
+      "load_hp": 3,
+      "condition": "healthy",
+      "source_id": 100,
+      "subset_group": "normal"
+    },
+    {
+      "filename": "ir007_0.mat",
+      "class": "inner_race",
+      "load_hp": 0,
+      "condition": "fault",
+      "source_id": 105,
+      "subset_group": "ir_007"
+    },
+    {
+      "filename": "ir007_1.mat",
+      "class": "inner_race",
+      "load_hp": 1,
+      "condition": "fault",
+      "source_id": 106,
+      "subset_group": "ir_007"
+    },
+    {
+      "filename": "ir007_2.mat",
+      "class": "inner_race",
+      "load_hp": 2,
+      "condition": "fault",
+      "source_id": 107,
+      "subset_group": "ir_007"
+    },
+    {
+      "filename": "ir007_3.mat",
+      "class": "inner_race",
+      "load_hp": 3,
+      "condition": "fault",
+      "source_id": 108,
+      "subset_group": "ir_007"
+    },
+    {
+      "filename": "ball007_0.mat",
+      "class": "ball",
+      "load_hp": 0,
+      "condition": "fault",
+      "source_id": 118,
+      "subset_group": "ball_007"
+    },
+    {
+      "filename": "ball007_1.mat",
+      "class": "ball",
+      "load_hp": 1,
+      "condition": "fault",
+      "source_id": 119,
+      "subset_group": "ball_007"
+    },
+    {
+      "filename": "ball007_2.mat",
+      "class": "ball",
+      "load_hp": 2,
+      "condition": "fault",
+      "source_id": 120,
+      "subset_group": "ball_007"
+    },
+    {
+      "filename": "ball007_3.mat",
+      "class": "ball",
+      "load_hp": 3,
+      "condition": "fault",
+      "source_id": 121,
+      "subset_group": "ball_007"
+    },
+    {
+      "filename": "or007_6_0.mat",
+      "class": "outer_race_6",
+      "load_hp": 0,
+      "condition": "fault",
+      "source_id": 130,
+      "subset_group": "or_007_6"
+    },
+    {
+      "filename": "or007_6_1.mat",
+      "class": "outer_race_6",
+      "load_hp": 1,
+      "condition": "fault",
+      "source_id": 131,
+      "subset_group": "or_007_6"
+    },
+    {
+      "filename": "or007_6_2.mat",
+      "class": "outer_race_6",
+      "load_hp": 2,
+      "condition": "fault",
+      "source_id": 132,
+      "subset_group": "or_007_6"
+    },
+    {
+      "filename": "or007_6_3.mat",
+      "class": "outer_race_6",
+      "load_hp": 3,
+      "condition": "fault",
+      "source_id": 133,
+      "subset_group": "or_007_6"
+    }
+  ]
+}
