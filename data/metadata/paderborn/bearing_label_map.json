@@ -1,0 +1,501 @@
+{
+  "dataset": "paderborn",
+  "generated_from": {
+    "file_map_path": "D:/University of Rajshahi/Research/VibeTwin/data/metadata/paderborn/file_map.csv",
+    "raw_root": "D:/University of Rajshahi/Research/VibeTwin/data/raw/paderborn"
+  },
+  "summary": {
+    "total_bearings": 32,
+    "verified_pdf_count": 0,
+    "inferred_family_rule_count": 32,
+    "healthy_bearing_count": 6,
+    "damaged_bearing_count": 26,
+    "damage_group_counts": {
+      "KA": 12,
+      "KB": 3,
+      "KI": 11
+    }
+  },
+  "bearings": [
+    {
+      "bearing_code": "K001",
+      "health_status": "healthy",
+      "damage_group": "",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "K002",
+      "health_status": "healthy",
+      "damage_group": "",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "K003",
+      "health_status": "healthy",
+      "damage_group": "",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "K004",
+      "health_status": "healthy",
+      "damage_group": "",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "K005",
+      "health_status": "healthy",
+      "damage_group": "",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "K006",
+      "health_status": "healthy",
+      "damage_group": "",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KA01",
+      "health_status": "damaged",
+      "damage_group": "KA",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KA03",
+      "health_status": "damaged",
+      "damage_group": "KA",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KA04",
+      "health_status": "damaged",
+      "damage_group": "KA",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KA05",
+      "health_status": "damaged",
+      "damage_group": "KA",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KA06",
+      "health_status": "damaged",
+      "damage_group": "KA",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KA07",
+      "health_status": "damaged",
+      "damage_group": "KA",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KA08",
+      "health_status": "damaged",
+      "damage_group": "KA",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KA09",
+      "health_status": "damaged",
+      "damage_group": "KA",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KA15",
+      "health_status": "damaged",
+      "damage_group": "KA",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KA16",
+      "health_status": "damaged",
+      "damage_group": "KA",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KA22",
+      "health_status": "damaged",
+      "damage_group": "KA",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KA30",
+      "health_status": "damaged",
+      "damage_group": "KA",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KB23",
+      "health_status": "damaged",
+      "damage_group": "KB",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KB24",
+      "health_status": "damaged",
+      "damage_group": "KB",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KB27",
+      "health_status": "damaged",
+      "damage_group": "KB",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KI01",
+      "health_status": "damaged",
+      "damage_group": "KI",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KI03",
+      "health_status": "damaged",
+      "damage_group": "KI",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KI04",
+      "health_status": "damaged",
+      "damage_group": "KI",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KI05",
+      "health_status": "damaged",
+      "damage_group": "KI",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KI07",
+      "health_status": "damaged",
+      "damage_group": "KI",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KI08",
+      "health_status": "damaged",
+      "damage_group": "KI",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KI14",
+      "health_status": "damaged",
+      "damage_group": "KI",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KI16",
+      "health_status": "damaged",
+      "damage_group": "KI",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KI17",
+      "health_status": "damaged",
+      "damage_group": "KI",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KI18",
+      "health_status": "damaged",
+      "damage_group": "KI",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    },
+    {
+      "bearing_code": "KI21",
+      "health_status": "damaged",
+      "damage_group": "KI",
+      "label_source": "inferred_family_rule",
+      "support_files_present": true,
+      "notes": "Support PDFs exist locally but were not parsed automatically in this pass; label remains inferred from the bearing-code family.",
+      "measurement_file_count": 80,
+      "condition_codes": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ]
+    }
+  ]
+}

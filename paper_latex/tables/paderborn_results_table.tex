@@ -1,0 +1,16 @@
+\begin{table}[t]
+\centering
+\caption{Paderborn final model versus baseline references. ResDilatedAE results are reported across three seeds.}
+\label{tab:paderborn_results}
+\begin{tabular}{p{2.2cm} p{2.1cm} c c c c c}
+\toprule
+Model & Threshold Setup & AUROC & F1 & Precision & Recall Fault & False Alarm Rate \\
+\midrule
+CompactAE & mean\_plus\_3std & 0.546 & 0.261 & 0.998 & 0.150 & 0.0087 \\
+OC-SVM & mean\_plus\_3std & 0.577 & 0.000 & 1.000 & 0.000 & 0.0000 \\
+Isolation Forest & mean\_plus\_3std & 0.914 & 0.634 & 0.999 & 0.464 & 0.0083 \\
+ResDilatedAE & mean\_plus\_3std & 0.858 $\pm$ 0.013 & 0.770 $\pm$ 0.030 & 0.999 $\pm$ 0.000 & 0.627 $\pm$ 0.040 & 0.0154 $\pm$ 0.0018 \\
+ResDilatedAE & percentile\_99\_5 & 0.858 $\pm$ 0.013 & 0.757 $\pm$ 0.022 & 1.000 $\pm$ 0.000 & 0.610 $\pm$ 0.028 & 0.0071 $\pm$ 0.0006 \\
+\bottomrule
+\end{tabular}
+\end{table}

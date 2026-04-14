@@ -1,0 +1,17 @@
+relpath,filename,class,load_hp,condition,source_id,subset_group,exists
+data/raw/cwru/normal/normal_0.mat,normal_0.mat,normal,0,healthy,97,normal,true
+data/raw/cwru/normal/normal_1.mat,normal_1.mat,normal,1,healthy,98,normal,true
+data/raw/cwru/normal/normal_2.mat,normal_2.mat,normal,2,healthy,99,normal,true
+data/raw/cwru/normal/normal_3.mat,normal_3.mat,normal,3,healthy,100,normal,true
+data/raw/cwru/ir_007/ir007_0.mat,ir007_0.mat,inner_race,0,fault,105,ir_007,true
+data/raw/cwru/ir_007/ir007_1.mat,ir007_1.mat,inner_race,1,fault,106,ir_007,true
+data/raw/cwru/ir_007/ir007_2.mat,ir007_2.mat,inner_race,2,fault,107,ir_007,true
+data/raw/cwru/ir_007/ir007_3.mat,ir007_3.mat,inner_race,3,fault,108,ir_007,true
+data/raw/cwru/ball_007/ball007_0.mat,ball007_0.mat,ball,0,fault,118,ball_007,true
+data/raw/cwru/ball_007/ball007_1.mat,ball007_1.mat,ball,1,fault,119,ball_007,true
+data/raw/cwru/ball_007/ball007_2.mat,ball007_2.mat,ball,2,fault,120,ball_007,true
+data/raw/cwru/ball_007/ball007_3.mat,ball007_3.mat,ball,3,fault,121,ball_007,true
+data/raw/cwru/or_007_6/or007_6_0.mat,or007_6_0.mat,outer_race_6,0,fault,130,or_007_6,true
+data/raw/cwru/or_007_6/or007_6_1.mat,or007_6_1.mat,outer_race_6,1,fault,131,or_007_6,true
+data/raw/cwru/or_007_6/or007_6_2.mat,or007_6_2.mat,outer_race_6,2,fault,132,or_007_6,true
+data/raw/cwru/or_007_6/or007_6_3.mat,or007_6_3.mat,outer_race_6,3,fault,133,or_007_6,true

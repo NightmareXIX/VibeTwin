@@ -1,0 +1,11 @@
+{
+  "method": "zscore_global",
+  "fit_split": "train",
+  "fit_condition": "healthy",
+  "mean": 0.012116393469709013,
+  "std": 0.06555669045535091,
+  "num_train_windows": 1143,
+  "window_size": 2048,
+  "num_train_samples": 2340864,
+  "output_dtype": "float32"
+}

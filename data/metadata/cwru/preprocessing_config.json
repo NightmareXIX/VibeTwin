@@ -1,0 +1,29 @@
+{
+  "dataset": "cwru",
+  "file_map_path": "D:/University of Rajshahi/Research/VibeTwin/data/metadata/cwru/file_map.csv",
+  "raw_root": "D:/University of Rajshahi/Research/VibeTwin/data/raw/cwru",
+  "processed_root": "D:/University of Rajshahi/Research/VibeTwin/data/processed/cwru",
+  "metadata_root": "D:/University of Rajshahi/Research/VibeTwin/data/metadata/cwru",
+  "channel": "drive_end",
+  "channel_suffix": "_DE_time",
+  "window_size": 2048,
+  "stride": 1024,
+  "guard_gap": 2048,
+  "split_ratios": {
+    "train": 0.7,
+    "val": 0.15,
+    "test": 0.15
+  },
+  "normalization": {
+    "method": "zscore_global",
+    "fit_on": "healthy_train_only"
+  },
+  "filtering": "none",
+  "dtype": "float32",
+  "seed": 42,
+  "fault_label_map": {
+    "ball": 0,
+    "inner_race": 1,
+    "outer_race_6": 2
+  }
+}

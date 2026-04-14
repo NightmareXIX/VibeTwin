@@ -1,0 +1,12 @@
+{
+  "method": "zscore_global",
+  "fit_split": "train",
+  "fit_condition": "healthy",
+  "mean": -0.015629497962557828,
+  "std": 0.29467682173695553,
+  "num_train_windows": 82231,
+  "window_size": 2048,
+  "num_train_samples": 168409088,
+  "output_dtype": "float32",
+  "signal_channel": "vibration_1"
+}

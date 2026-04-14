@@ -1,0 +1,16 @@
+\begin{table}[t]
+\centering
+\caption{CWRU final model versus baseline references under harder leave-one-load-out load shift.}
+\label{tab:cwru_results}
+\begin{tabular}{p{2.0cm} p{2.2cm} c c c c c}
+\toprule
+Model & Threshold Setup & AUROC & F1 & Precision & Recall Fault & False Alarm Rate \\
+\midrule
+AE & saved mean\_plus\_3std & 1.000 $\pm$ 0.000 & 0.984 $\pm$ 0.019 & 0.969 $\pm$ 0.036 & 1.000 $\pm$ 0.000 & 0.301 $\pm$ 0.412 \\
+OC-SVM & saved mean\_plus\_3std & 1.000 $\pm$ 0.000 & 0.980 $\pm$ 0.017 & 0.962 $\pm$ 0.032 & 1.000 $\pm$ 0.000 & 0.337 $\pm$ 0.391 \\
+Isolation Forest & saved mean\_plus\_3std & 1.000 $\pm$ 0.000 & 0.986 $\pm$ 0.017 & 0.973 $\pm$ 0.033 & 1.000 $\pm$ 0.000 & 0.268 $\pm$ 0.390 \\
+ResDilatedAE & saved mean\_plus\_3std & 1.000 $\pm$ 0.000 & 0.987 $\pm$ 0.019 & 0.976 $\pm$ 0.035 & 1.000 $\pm$ 0.000 & 0.257 $\pm$ 0.412 \\
+ResDilatedAE & percentile\_99 & 1.000 $\pm$ 0.000 & 0.988 $\pm$ 0.019 & 0.977 $\pm$ 0.036 & 1.000 $\pm$ 0.000 & 0.254 $\pm$ 0.414 \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,1 @@
+2016-07-13:  update of profile of bearing damage KI03 (correction of mistakes in description of damage geometry)

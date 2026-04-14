@@ -1,60 +1,37 @@
-# OS and editor files
-.DS_Store
-Thumbs.db
-Desktop.ini
-.vscode/
-.idea/
-
-# Python caches and tooling
+# Python caches and virtual environments
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
 .pytest_cache/
 .mypy_cache/
-.ruff_cache/
-.hypothesis/
-.tox/
-.nox/
-.coverage
-.coverage.*
-htmlcov/
-
-# Virtual environments
-.venv/
-.venv*/
-venv/
-env/
-ENV/
-
-# Notebook checkpoints
 .ipynb_checkpoints/
+**/.venv*/
+.venv*/
 
-# Packaging and build outputs
-build/
-dist/
-*.egg-info/
-.eggs/
-pip-wheel-metadata/
+# Local temp and download folders
+.tmp-python/
+tmp/
+temp/
+logs/
+**/wheels/
+**/torch_extract_test*/
 
-# Local environment files
-.env
-.env.*
-*.log
-
-# Research outputs and scratch space
-artifacts/
-wheels/
-torch_extract_test/
-
-# Local datasets and derived arrays
+# Research data: keep metadata, exclude raw and processed datasets
 data/raw/
 data/processed/
-
-# Generated preprocessing metadata
-data/metadata/cwru/manifest.csv
 data/metadata/cwru/window_manifest.csv
-data/metadata/cwru/normalization_stats.json
-data/metadata/cwru/preprocessing_config.json
-data/metadata/cwru/fault_label_map.json
-data/metadata/cwru/preprocessing_audit.md
+data/metadata/paderborn/window_manifest.csv
+
+# Training outputs and generated research artifacts
+artifacts/
+
+# LaTeX build outputs
+paper_latex/*.aux
+paper_latex/*.bbl
+paper_latex/*.blg
+paper_latex/*.fdb_latexmk
+paper_latex/*.fls
+paper_latex/*.log
+paper_latex/*.out
+paper_latex/*.synctex.gz
