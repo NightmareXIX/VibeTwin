@@ -1,0 +1,83 @@
+kind,packaged_path,source_path,note
+copied,01_source_docs/readme_versions.txt,readme_versions.txt,Local version note captured for writing context.
+copied,01_source_docs/paderborn_preprocessing_report.md,data/metadata/paderborn/preprocessing_report.md,Primary dataset preprocessing and split audit.
+copied,01_source_docs/paderborn_prepare_report.md,data/metadata/paderborn/prepare_report.md,Paderborn file inventory and preparation notes.
+copied,01_source_docs/paderborn_bearing_label_map.md,data/metadata/paderborn/bearing_label_map.md,Paderborn label provenance reference.
+copied,01_source_docs/cwru_preprocessing_audit.md,data/metadata/cwru/preprocessing_audit.md,CWRU preprocessing and split audit.
+copied,01_source_docs/cwru_metadata_readme.md,data/metadata/cwru/README.md,CWRU metadata readme for writing context.
+copied,02_final_metrics/cwru/cwru_resdilated_load_shift_metrics.json,artifacts/generative_upgrades/cwru_load_shift/resdilated_ae/seed_42/cwru_resdilated_load_shift_metrics.json,Final ResDilatedAE CWRU harder load-shift metrics.
+copied,02_final_metrics/cwru/cwru_resdilated_threshold_calibration_metrics.json,artifacts/generative_upgrades/cwru_load_shift/resdilated_ae/seed_42/cwru_resdilated_threshold_calibration_metrics.json,Final ResDilatedAE CWRU calibration metrics.
+copied,02_final_metrics/cwru/cwru_baseline_load_shift_metrics.json,artifacts/metrics/cwru_load_shift_metrics.json,Earlier CWRU baseline load-shift metrics for context.
+copied,02_final_metrics/cwru/cwru_baseline_threshold_calibration_metrics.json,artifacts/metrics/cwru_threshold_calibration_metrics.json,Earlier CWRU threshold-calibration metrics for context.
+copied,02_final_metrics/cwru/cwru_ae_metrics.json,artifacts/metrics/cwru_ae_metrics.json,CWRU compact AE baseline metrics.
+copied,02_final_metrics/cwru/cwru_iforest_metrics.json,artifacts/metrics/cwru_iforest_metrics.json,CWRU Isolation Forest baseline metrics.
+copied,02_final_metrics/cwru/cwru_ocsvm_metrics.json,artifacts/metrics/cwru_ocsvm_metrics.json,CWRU OC-SVM baseline metrics.
+copied,02_final_metrics/paderborn/paderborn_resdilated_threshold_calibration_metrics.json,artifacts/generative_upgrades/resdilated_ae/resdilated_ae_threshold_calibration_metrics.json,Final Paderborn ResDilatedAE threshold-calibration metrics.
+copied,02_final_metrics/paderborn/paderborn_resdilated_mc_dropout_metrics.json,artifacts/generative_upgrades/resdilated_ae/resdilated_ae_mc_dropout_metrics.json,Final Paderborn MC-dropout uncertainty metrics.
+copied,02_final_metrics/paderborn/paderborn_resdilated_deployment_metrics.json,artifacts/generative_upgrades/resdilated_ae/deployment/resdilated_ae_deployment_metrics.json,Final Paderborn deployment metrics.
+copied,02_final_metrics/paderborn/paderborn_resdilated_seed_42_metrics.json,artifacts/generative_upgrades/resdilated_ae/seed_42/metrics.json,Seed 42 ResDilatedAE run metrics.
+copied,02_final_metrics/paderborn/paderborn_resdilated_seed_7_metrics.json,artifacts/generative_upgrades/resdilated_ae/seed_7/metrics.json,Seed 7 ResDilatedAE run metrics.
+copied,02_final_metrics/paderborn/paderborn_resdilated_seed_123_metrics.json,artifacts/generative_upgrades/resdilated_ae/seed_123/metrics.json,Seed 123 ResDilatedAE run metrics.
+copied,02_final_metrics/paderborn/paderborn_resdilated_explanation_cases.json,artifacts/generative_upgrades/resdilated_ae/explanations/seed_123_percentile_99_5/resdilated_ae_explanation_cases.json,Selected explanation case metadata.
+copied,02_final_metrics/paderborn/paderborn_ae_metrics.json,artifacts/metrics/paderborn_ae_metrics.json,Paderborn compact AE baseline metrics.
+copied,02_final_metrics/paderborn/paderborn_iforest_metrics.json,artifacts/metrics/paderborn_iforest_metrics.json,Paderborn Isolation Forest baseline metrics.
+copied,02_final_metrics/paderborn/paderborn_ocsvm_metrics.json,artifacts/metrics/paderborn_ocsvm_metrics.json,Paderborn OC-SVM baseline metrics.
+copied,03_final_reports/cwru/cwru_resdilated_load_shift_report.md,artifacts/generative_upgrades/cwru_load_shift/resdilated_ae/seed_42/cwru_resdilated_load_shift_report.md,Final CWRU ResDilatedAE harder load-shift report.
+copied,03_final_reports/cwru/cwru_resdilated_threshold_calibration_report.md,artifacts/generative_upgrades/cwru_load_shift/resdilated_ae/seed_42/cwru_resdilated_threshold_calibration_report.md,Final CWRU ResDilatedAE threshold-calibration report.
+copied,03_final_reports/cwru/cwru_baseline_load_shift_report.md,artifacts/metrics/cwru_load_shift_report.md,Earlier CWRU baseline load-shift report for context.
+copied,03_final_reports/cwru/cwru_baseline_threshold_calibration_report.md,artifacts/metrics/cwru_threshold_calibration_report.md,Earlier CWRU calibration report for context.
+copied,03_final_reports/cwru/cwru_shallow_baseline_report.md,artifacts/metrics/cwru_shallow_report.md,Earlier CWRU shallow-baseline report for context.
+copied,03_final_reports/paderborn/paderborn_resdilated_seed_comparison_report.md,artifacts/generative_upgrades/resdilated_ae/resdilated_ae_seed_comparison_report.md,Seed stability summary for final Paderborn model.
+copied,03_final_reports/paderborn/paderborn_resdilated_threshold_calibration_report.md,artifacts/generative_upgrades/resdilated_ae/resdilated_ae_threshold_calibration_report.md,Final Paderborn calibration report.
+copied,03_final_reports/paderborn/paderborn_resdilated_mc_dropout_report.md,artifacts/generative_upgrades/resdilated_ae/resdilated_ae_mc_dropout_report.md,Negative-result uncertainty report.
+copied,03_final_reports/paderborn/paderborn_resdilated_deployment_report.md,artifacts/generative_upgrades/resdilated_ae/deployment/resdilated_ae_deployment_report.md,Final deployment report.
+copied,03_final_reports/paderborn/paderborn_resdilated_explanation_report.md,artifacts/generative_upgrades/resdilated_ae/explanations/seed_123_percentile_99_5/resdilated_ae_explanation_report.md,Final explanation report.
+copied,03_final_reports/paderborn/paderborn_baseline_report.md,artifacts/metrics/paderborn_baseline_report.md,Baseline comparison report for the primary dataset.
+copied,03_final_reports/paderborn/paderborn_resdilated_seed_123_report.md,artifacts/generative_upgrades/resdilated_ae/seed_123/report.md,Chosen single-seed run used for explanation and deployment assets.
+copied,04_candidate_figures/cwru/cwru_resdilated_load_shift_summary.png,artifacts/generative_upgrades/cwru_load_shift/resdilated_ae/seed_42/cwru_resdilated_load_shift_summary.png,Main CWRU ResDilatedAE load-shift plot candidate.
+copied,04_candidate_figures/cwru/cwru_threshold_calibration_summary.png,artifacts/plots/cwru_threshold_calibration_summary.png,CWRU threshold-calibration context plot candidate.
+copied,04_candidate_figures/paderborn/paderborn_resdilated_seed_123_summary.png,artifacts/generative_upgrades/resdilated_ae/seed_123/summary.png,Compact Paderborn comparison plot candidate from the chosen seed.
+copied,04_candidate_figures/paderborn/paderborn_baseline_summary.png,artifacts/plots/paderborn_baseline_summary.png,Paderborn baseline score-distribution plot candidate.
+copied,04_candidate_figures/paderborn_explanations/01_tp_ka.png,artifacts/generative_upgrades/resdilated_ae/explanations/seed_123_percentile_99_5/figures/01_tp_ka.png,Explanation case figure: KA true positive.
+copied,04_candidate_figures/paderborn_explanations/02_tp_kb.png,artifacts/generative_upgrades/resdilated_ae/explanations/seed_123_percentile_99_5/figures/02_tp_kb.png,Explanation case figure: KB true positive.
+copied,04_candidate_figures/paderborn_explanations/03_tp_ki.png,artifacts/generative_upgrades/resdilated_ae/explanations/seed_123_percentile_99_5/figures/03_tp_ki.png,Explanation case figure: KI true positive.
+copied,04_candidate_figures/paderborn_explanations/04_hardest_condition_tp.png,artifacts/generative_upgrades/resdilated_ae/explanations/seed_123_percentile_99_5/figures/04_hardest_condition_tp.png,Explanation case figure: hardest operating condition true positive.
+copied,04_candidate_figures/paderborn_explanations/05_healthy_true_negative.png,artifacts/generative_upgrades/resdilated_ae/explanations/seed_123_percentile_99_5/figures/05_healthy_true_negative.png,Explanation case figure: healthy true negative.
+copied,04_candidate_figures/paderborn_explanations/06_healthy_false_positive.png,artifacts/generative_upgrades/resdilated_ae/explanations/seed_123_percentile_99_5/figures/06_healthy_false_positive.png,Explanation case figure: healthy false positive.
+copied,06_method_assets/scripts/train_generative_upgrades.py,scripts/train_generative_upgrades.py,Core final-model training script.
+copied,06_method_assets/scripts/eval_paderborn_resdilated_threshold_calibration.py,scripts/eval_paderborn_resdilated_threshold_calibration.py,Primary-dataset threshold-calibration evaluation script.
+copied,06_method_assets/scripts/explain_paderborn_resdilated.py,scripts/explain_paderborn_resdilated.py,Explanation asset generation script.
+copied,06_method_assets/scripts/eval_paderborn_deployment_metrics.py,scripts/eval_paderborn_deployment_metrics.py,Deployment benchmark script.
+copied,06_method_assets/scripts/eval_paderborn_resdilated_mc_dropout.py,scripts/eval_paderborn_resdilated_mc_dropout.py,Uncertainty evaluation script.
+copied,06_method_assets/scripts/eval_cwru_resdilated_load_shift.py,scripts/eval_cwru_resdilated_load_shift.py,Secondary-dataset harder load-shift evaluation script.
+copied,06_method_assets/scripts/eval_cwru_resdilated_threshold_calibration.py,scripts/eval_cwru_resdilated_threshold_calibration.py,Secondary-dataset calibration evaluation script.
+copied,06_method_assets/scripts/train_paderborn_baselines.py,scripts/train_paderborn_baselines.py,Primary-dataset baseline training and evaluation script.
+copied,06_method_assets/scripts/train_shallow_baselines.py,scripts/train_shallow_baselines.py,CWRU shallow baseline script.
+copied,06_method_assets/scripts/preprocess_paderborn.py,scripts/preprocess_paderborn.py,Primary-dataset preprocessing script.
+copied,06_method_assets/scripts/preprocess_cwru.py,scripts/preprocess_cwru.py,Secondary-dataset preprocessing script.
+copied,06_method_assets/scripts/prepare_paderborn.py,scripts/prepare_paderborn.py,Paderborn file preparation script.
+copied,06_method_assets/scripts/build_paderborn_label_map.py,scripts/build_paderborn_label_map.py,Paderborn label-map helper script.
+copied,06_method_assets/configs/paderborn_preprocessing_config.json,data/metadata/paderborn/preprocessing_config.json,Primary-dataset preprocessing config.
+copied,06_method_assets/configs/paderborn_normalization_stats.json,data/metadata/paderborn/normalization_stats.json,Primary-dataset normalization stats.
+copied,06_method_assets/configs/paderborn_bearing_label_map.json,data/metadata/paderborn/bearing_label_map.json,Primary-dataset label-map JSON.
+copied,06_method_assets/configs/cwru_preprocessing_config.json,data/metadata/cwru/preprocessing_config.json,Secondary-dataset preprocessing config.
+copied,06_method_assets/configs/cwru_normalization_stats.json,data/metadata/cwru/normalization_stats.json,Secondary-dataset normalization stats.
+copied,06_method_assets/configs/cwru_fault_label_map.json,data/metadata/cwru/fault_label_map.json,Secondary-dataset fault label map.
+generated,05_candidate_tables/table_cwru_final_vs_baselines.csv,artifacts/metrics/cwru_load_shift_metrics.json + artifacts/generative_upgrades/cwru_load_shift/resdilated_ae/seed_42/*.json,Generated compact CWRU comparison table.
+generated,05_candidate_tables/table_cwru_final_vs_baselines.md,artifacts/metrics/cwru_load_shift_metrics.json + artifacts/generative_upgrades/cwru_load_shift/resdilated_ae/seed_42/*.json,Generated markdown version of the CWRU comparison table.
+generated,05_candidate_tables/table_paderborn_final_vs_baselines.csv,artifacts/metrics/paderborn_*_metrics.json + artifacts/generative_upgrades/resdilated_ae/resdilated_ae_threshold_calibration_metrics.json,Generated compact Paderborn comparison table.
+generated,05_candidate_tables/table_paderborn_final_vs_baselines.md,artifacts/metrics/paderborn_*_metrics.json + artifacts/generative_upgrades/resdilated_ae/resdilated_ae_threshold_calibration_metrics.json,Generated markdown version of the Paderborn comparison table.
+generated,05_candidate_tables/table_paderborn_seed_stability.csv,"artifacts/generative_upgrades/resdilated_ae/seed_{42,7,123}/metrics.json",Generated per-seed stability table.
+generated,05_candidate_tables/table_paderborn_seed_stability.md,"artifacts/generative_upgrades/resdilated_ae/seed_{42,7,123}/metrics.json",Generated markdown version of the per-seed stability table.
+generated,05_candidate_tables/table_paderborn_threshold_rules.csv,artifacts/generative_upgrades/resdilated_ae/resdilated_ae_threshold_calibration_metrics.json,Generated paderborn threshold-rule CSV table.
+generated,05_candidate_tables/table_paderborn_threshold_rules.md,artifacts/generative_upgrades/resdilated_ae/resdilated_ae_threshold_calibration_metrics.json,Generated paderborn threshold-rule markdown table.
+generated,05_candidate_tables/table_cwru_threshold_rules.csv,artifacts/generative_upgrades/cwru_load_shift/resdilated_ae/seed_42/cwru_resdilated_threshold_calibration_metrics.json,Generated cwru threshold-rule CSV table.
+generated,05_candidate_tables/table_cwru_threshold_rules.md,artifacts/generative_upgrades/cwru_load_shift/resdilated_ae/seed_42/cwru_resdilated_threshold_calibration_metrics.json,Generated cwru threshold-rule markdown table.
+generated,05_candidate_tables/table_deployment_summary.csv,artifacts/generative_upgrades/resdilated_ae/deployment/resdilated_ae_deployment_metrics.json,Generated deployment CSV table.
+generated,05_candidate_tables/table_deployment_summary.md,artifacts/generative_upgrades/resdilated_ae/deployment/resdilated_ae_deployment_metrics.json,Generated deployment markdown table.
+generated,05_candidate_tables/table_uncertainty_summary.csv,artifacts/generative_upgrades/resdilated_ae/resdilated_ae_mc_dropout_metrics.json,Generated uncertainty CSV table.
+generated,05_candidate_tables/table_uncertainty_summary.md,artifacts/generative_upgrades/resdilated_ae/resdilated_ae_mc_dropout_metrics.json,Generated uncertainty markdown table.
+generated,07_notes_and_limitations/figure_cleanup_watchlist.md,Manual package note based on saved plot inspection,Generated figure cleanup watchlist.
+generated,07_notes_and_limitations/writing_caveats.md,Manual package note based on saved reports and metrics,Generated writing caveat checklist.
+generated,paper_package_manifest.csv,Generated from copy specs and table/report assembly,Per-file package manifest.
+generated,paper_package_overall_report.md,Generated from copy specs and saved metrics,Overall paper-package report.

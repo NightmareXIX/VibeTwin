@@ -1,0 +1,155 @@
+{
+  "study": "paderborn_resdilated_ae_explanations",
+  "model": "ResDilatedAE",
+  "seed": 123,
+  "threshold_rule": "percentile_99_5",
+  "threshold": 0.0004917661461513468,
+  "hardest_condition": "N09_M07_F10",
+  "source_run_dir": "artifacts/generative_upgrades/resdilated_ae/seed_123",
+  "checkpoint_path": "artifacts/generative_upgrades/resdilated_ae/seed_123/checkpoints/best.pt",
+  "score_paths": {
+    "val_healthy_scores": "artifacts/generative_upgrades/resdilated_ae/seed_123/val_healthy_scores.npy",
+    "test_healthy_scores": "artifacts/generative_upgrades/resdilated_ae/seed_123/test_healthy_scores.npy",
+    "test_fault_scores": "artifacts/generative_upgrades/resdilated_ae/seed_123/test_fault_scores.npy"
+  },
+  "cases": [
+    {
+      "case_id": "tp_ka",
+      "label": "True Positive KA",
+      "selection_reason": "Representative true-positive example from damage group KA.",
+      "score": 0.00903838686645031,
+      "threshold": 0.0004917661461513468,
+      "prediction": "abnormal",
+      "metadata": {
+        "subset": "test_fault",
+        "health_status": "damaged",
+        "damage_group": "KA",
+        "bearing_code": "KA22",
+        "condition_code": "N15_M07_F04",
+        "relative_path": "data/raw/paderborn/KA22/N15_M07_F04_KA22_3.mat",
+        "measurement_id": "N15_M07_F04_KA22_3",
+        "window_index": "212874",
+        "selected_signal": "vibration_1",
+        "fault_label_name": "KA"
+      },
+      "figure_path": "artifacts/generative_upgrades/resdilated_ae/explanations/seed_123_percentile_99_5/figures/01_tp_ka.png",
+      "figure_relpath": "figures/01_tp_ka.png",
+      "interpretation": "Actual label: fault (KA); predicted label: abnormal. The reconstruction captures the coarse envelope but leaves a moderate oscillatory mismatch in the finer waveform detail. FFT magnitudes for the original and reconstruction mostly overlap; the remaining residual spectrum is small and is concentrated most in the low-frequency band around 0.050, 0.090, 0.500 cycles/sample. That persistent mismatch against the healthy reconstruction is what likely pushed the anomaly score above threshold."
+    },
+    {
+      "case_id": "tp_kb",
+      "label": "True Positive KB",
+      "selection_reason": "Representative true-positive example from damage group KB.",
+      "score": 0.026331372559070587,
+      "threshold": 0.0004917661461513468,
+      "prediction": "abnormal",
+      "metadata": {
+        "subset": "test_fault",
+        "health_status": "damaged",
+        "damage_group": "KB",
+        "bearing_code": "KB23",
+        "condition_code": "N15_M07_F04",
+        "relative_path": "data/raw/paderborn/KB23/N15_M07_F04_KB23_10.mat",
+        "measurement_id": "N15_M07_F04_KB23_10",
+        "window_index": "249805",
+        "selected_signal": "vibration_1",
+        "fault_label_name": "KB"
+      },
+      "figure_path": "artifacts/generative_upgrades/resdilated_ae/explanations/seed_123_percentile_99_5/figures/02_tp_kb.png",
+      "figure_relpath": "figures/02_tp_kb.png",
+      "interpretation": "Actual label: fault (KB); predicted label: abnormal. The reconstruction captures the coarse envelope but leaves a moderate oscillatory mismatch in the finer waveform detail. FFT magnitudes for the original and reconstruction mostly overlap; the remaining residual spectrum is small and is concentrated most in the mid-frequency band around 0.008, 0.051, 0.155 cycles/sample. That persistent mismatch against the healthy reconstruction is what likely pushed the anomaly score above threshold."
+    },
+    {
+      "case_id": "tp_ki",
+      "label": "True Positive KI",
+      "selection_reason": "Representative true-positive example from damage group KI.",
+      "score": 0.006889051757752895,
+      "threshold": 0.0004917661461513468,
+      "prediction": "abnormal",
+      "metadata": {
+        "subset": "test_fault",
+        "health_status": "damaged",
+        "damage_group": "KI",
+        "bearing_code": "KI16",
+        "condition_code": "N15_M07_F04",
+        "relative_path": "data/raw/paderborn/KI16/N15_M07_F04_KI16_7.mat",
+        "measurement_id": "N15_M07_F04_KI16_7",
+        "window_index": "453493",
+        "selected_signal": "vibration_1",
+        "fault_label_name": "KI"
+      },
+      "figure_path": "artifacts/generative_upgrades/resdilated_ae/explanations/seed_123_percentile_99_5/figures/03_tp_ki.png",
+      "figure_relpath": "figures/03_tp_ki.png",
+      "interpretation": "Actual label: fault (KI); predicted label: abnormal. The reconstruction closely follows the waveform and leaves only small residual ripples. FFT magnitudes for the original and reconstruction mostly overlap; the remaining residual spectrum is small and is concentrated most in the low-frequency band around 0.154, 0.155, 0.156 cycles/sample. That persistent mismatch against the healthy reconstruction is what likely pushed the anomaly score above threshold."
+    },
+    {
+      "case_id": "hardest_condition_tp",
+      "label": "Hardest Condition TP",
+      "selection_reason": "True-positive example from hardest operating condition N09_M07_F10.",
+      "score": 0.012716282159090042,
+      "threshold": 0.0004917661461513468,
+      "prediction": "abnormal",
+      "metadata": {
+        "subset": "test_fault",
+        "health_status": "damaged",
+        "damage_group": "KA",
+        "bearing_code": "KA15",
+        "condition_code": "N09_M07_F10",
+        "relative_path": "data/raw/paderborn/KA15/N09_M07_F10_KA15_7.mat",
+        "measurement_id": "N09_M07_F10_KA15_7",
+        "window_index": "163926",
+        "selected_signal": "vibration_1",
+        "fault_label_name": "KA"
+      },
+      "figure_path": "artifacts/generative_upgrades/resdilated_ae/explanations/seed_123_percentile_99_5/figures/04_hardest_condition_tp.png",
+      "figure_relpath": "figures/04_hardest_condition_tp.png",
+      "interpretation": "Actual label: fault (KA); predicted label: abnormal. The reconstruction captures the coarse envelope but leaves a moderate oscillatory mismatch in the finer waveform detail. FFT magnitudes for the original and reconstruction mostly overlap; the remaining residual spectrum is small and is concentrated most in the mid-frequency band around 0.002, 0.003, 0.500 cycles/sample. That persistent mismatch against the healthy reconstruction is what likely pushed the anomaly score above threshold."
+    },
+    {
+      "case_id": "healthy_true_negative",
+      "label": "Healthy True Negative",
+      "selection_reason": "Representative healthy window with a comfortably sub-threshold score.",
+      "score": 8.805171819403768e-05,
+      "threshold": 0.0004917661461513468,
+      "prediction": "healthy",
+      "metadata": {
+        "subset": "test_healthy",
+        "health_status": "healthy",
+        "damage_group": "",
+        "bearing_code": "K002",
+        "condition_code": "N09_M07_F10",
+        "relative_path": "data/raw/paderborn/K002/N09_M07_F10_K002_6.mat",
+        "measurement_id": "N09_M07_F10_K002_6",
+        "window_index": "3394",
+        "selected_signal": "vibration_1",
+        "fault_label_name": ""
+      },
+      "figure_path": "artifacts/generative_upgrades/resdilated_ae/explanations/seed_123_percentile_99_5/figures/05_healthy_true_negative.png",
+      "figure_relpath": "figures/05_healthy_true_negative.png",
+      "interpretation": "Actual label: healthy; predicted label: healthy. The reconstruction closely follows the waveform and leaves only small residual ripples. FFT magnitudes for the original and reconstruction mostly overlap; the remaining residual spectrum is small and is concentrated most in the high-frequency band around 0.001, 0.026, 0.500 cycles/sample. Because both the waveform and spectrum stay close to the learned healthy template, the score remains below the calibrated threshold."
+    },
+    {
+      "case_id": "healthy_false_positive",
+      "label": "Healthy False Positive",
+      "selection_reason": "Borderline healthy false-positive with the smallest score margin above threshold.",
+      "score": 0.0004924745298922062,
+      "threshold": 0.0004917661461513468,
+      "prediction": "abnormal",
+      "metadata": {
+        "subset": "test_healthy",
+        "health_status": "healthy",
+        "damage_group": "",
+        "bearing_code": "K002",
+        "condition_code": "N09_M07_F10",
+        "relative_path": "data/raw/paderborn/K002/N09_M07_F10_K002_7.mat",
+        "measurement_id": "N09_M07_F10_K002_7",
+        "window_index": "3431",
+        "selected_signal": "vibration_1",
+        "fault_label_name": ""
+      },
+      "figure_path": "artifacts/generative_upgrades/resdilated_ae/explanations/seed_123_percentile_99_5/figures/06_healthy_false_positive.png",
+      "figure_relpath": "figures/06_healthy_false_positive.png",
+      "interpretation": "Actual label: healthy; predicted label: abnormal. The reconstruction closely follows the waveform and leaves only small residual ripples. FFT magnitudes for the original and reconstruction mostly overlap; the remaining residual spectrum is small and is concentrated most in the high-frequency band around 0.418, 0.420, 0.500 cycles/sample. Even though the window is labeled healthy, the remaining mismatch is large enough to push the anomaly score above threshold, so this behaves like a false alarm."
+    }
+  ]
+}

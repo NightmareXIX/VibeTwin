@@ -1,0 +1,30 @@
+{
+  "auroc": 1.0,
+  "auprc": 0.9999999999999999,
+  "f1": 1.0,
+  "precision": 1.0,
+  "recall_fault": 1.0,
+  "false_alarm_rate": 0.0,
+  "num_test_healthy": 241,
+  "num_test_fault": 1412,
+  "num_predicted_anomalies": 1412,
+  "num_true_anomalies": 1412,
+  "parameter_count": 41409,
+  "batch_shape_check": {
+    "input": [
+      64,
+      1,
+      2048
+    ],
+    "output": [
+      64,
+      1,
+      2048
+    ]
+  },
+  "threshold": 0.23232848942279816,
+  "threshold_rule": "mean_plus_3std",
+  "final_train_loss": 0.12656085731580605,
+  "final_val_loss": 0.12669694318563612,
+  "device": "cpu"
+}

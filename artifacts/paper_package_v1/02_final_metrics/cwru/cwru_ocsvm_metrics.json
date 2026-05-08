@@ -1,0 +1,98 @@
+{
+  "auroc": 1.0,
+  "auprc": 1.0,
+  "f1": 0.9978798586572438,
+  "precision": 0.995768688293371,
+  "recall_fault": 1.0,
+  "false_alarm_rate": 0.024896265560165973,
+  "num_test_healthy": 241,
+  "num_test_fault": 1412,
+  "num_predicted_anomalies": 1418,
+  "num_true_anomalies": 1412,
+  "model_name": "ocsvm",
+  "threshold": 1.2778889536857605,
+  "threshold_rule": "mean_plus_3std",
+  "validation_score_mean": -1.3031136989593506,
+  "validation_score_std": 0.8603342175483704,
+  "feature_count": 17,
+  "feature_names": [
+    "mean",
+    "std",
+    "rms",
+    "max",
+    "min",
+    "peak_to_peak",
+    "skewness",
+    "kurtosis",
+    "crest_factor",
+    "signal_energy",
+    "spectral_centroid",
+    "spectral_entropy",
+    "psd_band_00_ratio",
+    "psd_band_01_ratio",
+    "psd_band_02_ratio",
+    "psd_band_03_ratio",
+    "psd_band_04_ratio"
+  ],
+  "psd_band_frequency_ranges": [
+    {
+      "feature": "psd_band_00_ratio",
+      "normalized_frequency_start": 0.00048828125,
+      "normalized_frequency_end": 0.10009765625
+    },
+    {
+      "feature": "psd_band_01_ratio",
+      "normalized_frequency_start": 0.1005859375,
+      "normalized_frequency_end": 0.2001953125
+    },
+    {
+      "feature": "psd_band_02_ratio",
+      "normalized_frequency_start": 0.20068359375,
+      "normalized_frequency_end": 0.30029296875
+    },
+    {
+      "feature": "psd_band_03_ratio",
+      "normalized_frequency_start": 0.30078125,
+      "normalized_frequency_end": 0.400390625
+    },
+    {
+      "feature": "psd_band_04_ratio",
+      "normalized_frequency_start": 0.40087890625,
+      "normalized_frequency_end": 0.5
+    }
+  ],
+  "train_feature_shape": [
+    1143,
+    17
+  ],
+  "val_feature_shape": [
+    241,
+    17
+  ],
+  "test_healthy_feature_shape": [
+    241,
+    17
+  ],
+  "test_fault_feature_shape": [
+    1412,
+    17
+  ],
+  "seed": 42,
+  "device": "cpu",
+  "score_direction": "higher_is_more_anomalous",
+  "scaler": "StandardScaler fit on healthy train only",
+  "fault_label_counts": {
+    "ball": 469,
+    "inner_race": 472,
+    "outer_race_6": 471
+  },
+  "normalization_metadata": {
+    "method": "zscore_global",
+    "fit_on": "healthy_train_only"
+  },
+  "hyperparameters": {
+    "kernel": "rbf",
+    "gamma": "scale",
+    "nu": 0.05
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "rule": "mean_plus_3std",
+  "threshold": 0.23232848942279816,
+  "validation_error_mean": 0.12669692933559418,
+  "validation_error_std": 0.03521052002906799,
+  "fit_split": "val_healthy",
+  "num_val_windows": 241
+}

@@ -1,0 +1,915 @@
+{
+  "protocol": {
+    "name": "cwru_leave_one_load_out",
+    "held_out_loads": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "healthy_train_source": "existing train split from non-held-out loads only",
+    "healthy_val_source": "existing val split from non-held-out loads only",
+    "healthy_test_source": "existing test split from held-out load only",
+    "fault_test_source": "existing fault test windows from held-out load only",
+    "threshold_rule": "mean_plus_3std",
+    "fold_specific_renormalization": {
+      "method": "zscore_global",
+      "fit_on": "healthy_train_only_per_fold",
+      "recovered_from_existing_processed_arrays": true,
+      "source_normalization_stats": {
+        "method": "zscore_global",
+        "fit_split": "train",
+        "fit_condition": "healthy",
+        "mean": 0.012116393469709013,
+        "std": 0.06555669045535091,
+        "num_train_windows": 1143,
+        "window_size": 2048,
+        "num_train_samples": 2340864,
+        "output_dtype": "float32"
+      }
+    }
+  },
+  "defaults": {
+    "ae": {
+      "batch_size": 64,
+      "epochs": 20,
+      "learning_rate": 0.001,
+      "device": "cpu"
+    },
+    "ocsvm": {
+      "kernel": "rbf",
+      "gamma": "scale",
+      "nu": 0.05
+    },
+    "iforest": {
+      "n_estimators": 300,
+      "max_samples": 256,
+      "contamination": "auto",
+      "n_jobs": 1
+    },
+    "feature_pipeline": {
+      "psd_band_count": 5
+    },
+    "seed": 42
+  },
+  "source_note": "Existing `window_manifest.csv` was sufficient for load indexing; no additional preprocessing metadata file was needed.",
+  "folds": [
+    {
+      "held_out_load_hp": 0,
+      "counts": {
+        "train_healthy": 981,
+        "val_healthy": 207,
+        "test_healthy": 34,
+        "test_fault": 353
+      },
+      "fold_normalization": {
+        "mean": 0.012043899856507778,
+        "std": 0.06436146050691605
+      },
+      "models": {
+        "AE": {
+          "metrics": {
+            "auroc": 1.0,
+            "auprc": 1.0,
+            "f1": 0.9540540540540541,
+            "precision": 0.9121447028423773,
+            "recall_fault": 1.0,
+            "false_alarm_rate": 1.0,
+            "num_test_healthy": 34,
+            "num_test_fault": 353,
+            "num_predicted_anomalies": 387,
+            "num_true_anomalies": 353,
+            "parameter_count": 41409,
+            "final_train_loss": 0.11387884684446269,
+            "final_val_loss": 0.11276285278336437,
+            "threshold": 0.1745906099677086
+          },
+          "threshold_meta": {
+            "rule": "mean_plus_3std",
+            "threshold": 0.1745906099677086,
+            "validation_error_mean": 0.11276285350322723,
+            "validation_error_std": 0.020609252154827118,
+            "fit_split": "val_healthy"
+          },
+          "history": {
+            "train_loss": [
+              1.0012573841636456,
+              0.8397507268962024,
+              0.676125881018138,
+              0.6147913018983925,
+              0.5963577327378299,
+              0.5624294256094642,
+              0.5096685894889326,
+              0.36092813080603925,
+              0.24815504494427906,
+              0.21291161496401076,
+              0.1898197044716212,
+              0.1895266561242054,
+              0.16064407233676659,
+              0.14591899394199145,
+              0.13617394803800106,
+              0.12874282220574088,
+              0.13259040904549405,
+              0.12416088701084363,
+              0.11764241098810774,
+              0.11387884684446269
+            ],
+            "val_loss": [
+              0.9467720596686654,
+              0.7519229981634352,
+              0.6244099235189133,
+              0.5978791468961228,
+              0.5787882269292638,
+              0.5289469859450335,
+              0.4664518360930365,
+              0.2642067333926325,
+              0.2245907669769969,
+              0.19939526426043488,
+              0.2194076779383968,
+              0.1743228248352014,
+              0.15235554912815924,
+              0.1403542191941957,
+              0.13238752514555835,
+              0.12591705309308093,
+              0.13661250997568675,
+              0.12142619929739819,
+              0.1155154193944977,
+              0.11276285278336437
+            ]
+          },
+          "batch_shape_check": {
+            "input": [
+              64,
+              1,
+              2048
+            ],
+            "output": [
+              64,
+              1,
+              2048
+            ]
+          }
+        },
+        "OC-SVM": {
+          "metrics": {
+            "auroc": 1.0,
+            "auprc": 1.0,
+            "f1": 0.9540540540540541,
+            "precision": 0.9121447028423773,
+            "recall_fault": 1.0,
+            "false_alarm_rate": 1.0,
+            "num_test_healthy": 34,
+            "num_test_fault": 353,
+            "num_predicted_anomalies": 387,
+            "num_true_anomalies": 353,
+            "threshold": 1.0599182844161987,
+            "feature_count": 17
+          },
+          "threshold_meta": {
+            "rule": "mean_plus_3std",
+            "threshold": 1.0599182844161987,
+            "validation_score_mean": -0.9860242605209351,
+            "validation_score_std": 0.6819808483123779,
+            "fit_split": "val_healthy"
+          },
+          "hyperparameters": {
+            "kernel": "rbf",
+            "gamma": "scale",
+            "nu": 0.05
+          },
+          "feature_names": [
+            "mean",
+            "std",
+            "rms",
+            "max",
+            "min",
+            "peak_to_peak",
+            "skewness",
+            "kurtosis",
+            "crest_factor",
+            "signal_energy",
+            "spectral_centroid",
+            "spectral_entropy",
+            "psd_band_00_ratio",
+            "psd_band_01_ratio",
+            "psd_band_02_ratio",
+            "psd_band_03_ratio",
+            "psd_band_04_ratio"
+          ]
+        },
+        "Isolation Forest": {
+          "metrics": {
+            "auroc": 1.0,
+            "auprc": 1.0,
+            "f1": 0.9566395663956639,
+            "precision": 0.9168831168831169,
+            "recall_fault": 1.0,
+            "false_alarm_rate": 0.9411764705882353,
+            "num_test_healthy": 34,
+            "num_test_fault": 353,
+            "num_predicted_anomalies": 385,
+            "num_true_anomalies": 353,
+            "threshold": 0.0662083625793457,
+            "feature_count": 17
+          },
+          "threshold_meta": {
+            "rule": "mean_plus_3std",
+            "threshold": 0.0662083625793457,
+            "validation_score_mean": -0.05554075911641121,
+            "validation_score_std": 0.040583040565252304,
+            "fit_split": "val_healthy"
+          },
+          "hyperparameters": {
+            "n_estimators": 300,
+            "max_samples": 256,
+            "contamination": "auto",
+            "random_state": 42,
+            "n_jobs": 1
+          },
+          "feature_names": [
+            "mean",
+            "std",
+            "rms",
+            "max",
+            "min",
+            "peak_to_peak",
+            "skewness",
+            "kurtosis",
+            "crest_factor",
+            "signal_energy",
+            "spectral_centroid",
+            "spectral_entropy",
+            "psd_band_00_ratio",
+            "psd_band_01_ratio",
+            "psd_band_02_ratio",
+            "psd_band_03_ratio",
+            "psd_band_04_ratio"
+          ]
+        }
+      }
+    },
+    {
+      "held_out_load_hp": 1,
+      "counts": {
+        "train_healthy": 817,
+        "val_healthy": 172,
+        "test_healthy": 69,
+        "test_fault": 353
+      },
+      "fold_normalization": {
+        "mean": 0.01219116523861885,
+        "std": 0.06569233536720276
+      },
+      "models": {
+        "AE": {
+          "metrics": {
+            "auroc": 1.0,
+            "auprc": 1.0,
+            "f1": 1.0,
+            "precision": 1.0,
+            "recall_fault": 1.0,
+            "false_alarm_rate": 0.0,
+            "num_test_healthy": 69,
+            "num_test_fault": 353,
+            "num_predicted_anomalies": 353,
+            "num_true_anomalies": 353,
+            "parameter_count": 41409,
+            "final_train_loss": 0.15341280873139893,
+            "final_val_loss": 0.15210969572843508,
+            "threshold": 0.21327240578830242
+          },
+          "threshold_meta": {
+            "rule": "mean_plus_3std",
+            "threshold": 0.21327240578830242,
+            "validation_error_mean": 0.15210969746112823,
+            "validation_error_std": 0.020387569442391396,
+            "fit_split": "val_healthy"
+          },
+          "history": {
+            "train_loss": [
+              1.005630283781773,
+              0.908858299693104,
+              0.786177701509422,
+              0.6800937521997543,
+              0.6539726946024154,
+              0.6373614956290806,
+              0.6075495492434414,
+              0.5635002429803407,
+              0.4291844388773275,
+              0.256116151718498,
+              0.22318930449727992,
+              0.20475318143315238,
+              0.1949254810408834,
+              0.18379745936087324,
+              0.17577921556288348,
+              0.16918002605219365,
+              0.16397765027119743,
+              0.1621789029973811,
+              0.15681922490477124,
+              0.15341280873139893
+            ],
+            "val_loss": [
+              0.990452834340029,
+              0.8296978113263153,
+              0.7070316894109859,
+              0.6608216429865638,
+              0.6461933684903521,
+              0.6267495973165645,
+              0.5854983315911404,
+              0.5347083342629809,
+              0.2793216954830081,
+              0.23425594803898833,
+              0.21170394850331684,
+              0.19757979934991793,
+              0.18818945039150325,
+              0.1782832263514053,
+              0.177162584523822,
+              0.16614273363767668,
+              0.16191433300805647,
+              0.15766933421755946,
+              0.15467493062795595,
+              0.15210969572843508
+            ]
+          },
+          "batch_shape_check": {
+            "input": [
+              64,
+              1,
+              2048
+            ],
+            "output": [
+              64,
+              1,
+              2048
+            ]
+          }
+        },
+        "OC-SVM": {
+          "metrics": {
+            "auroc": 1.0,
+            "auprc": 1.0,
+            "f1": 0.9791955617198336,
+            "precision": 0.9592391304347826,
+            "recall_fault": 1.0,
+            "false_alarm_rate": 0.21739130434782608,
+            "num_test_healthy": 69,
+            "num_test_fault": 353,
+            "num_predicted_anomalies": 368,
+            "num_true_anomalies": 353,
+            "threshold": 0.9619941711425781,
+            "feature_count": 17
+          },
+          "threshold_meta": {
+            "rule": "mean_plus_3std",
+            "threshold": 0.9619941711425781,
+            "validation_score_mean": -0.9101008176803589,
+            "validation_score_std": 0.624031662940979,
+            "fit_split": "val_healthy"
+          },
+          "hyperparameters": {
+            "kernel": "rbf",
+            "gamma": "scale",
+            "nu": 0.05
+          },
+          "feature_names": [
+            "mean",
+            "std",
+            "rms",
+            "max",
+            "min",
+            "peak_to_peak",
+            "skewness",
+            "kurtosis",
+            "crest_factor",
+            "signal_energy",
+            "spectral_centroid",
+            "spectral_entropy",
+            "psd_band_00_ratio",
+            "psd_band_01_ratio",
+            "psd_band_02_ratio",
+            "psd_band_03_ratio",
+            "psd_band_04_ratio"
+          ]
+        },
+        "Isolation Forest": {
+          "metrics": {
+            "auroc": 1.0,
+            "auprc": 1.0,
+            "f1": 0.9971751412429378,
+            "precision": 0.9943661971830986,
+            "recall_fault": 1.0,
+            "false_alarm_rate": 0.028985507246376812,
+            "num_test_healthy": 69,
+            "num_test_fault": 353,
+            "num_predicted_anomalies": 355,
+            "num_true_anomalies": 353,
+            "threshold": 0.10820385441184044,
+            "feature_count": 17
+          },
+          "threshold_meta": {
+            "rule": "mean_plus_3std",
+            "threshold": 0.10820385441184044,
+            "validation_score_mean": -0.05471774563193321,
+            "validation_score_std": 0.05430720001459122,
+            "fit_split": "val_healthy"
+          },
+          "hyperparameters": {
+            "n_estimators": 300,
+            "max_samples": 256,
+            "contamination": "auto",
+            "random_state": 42,
+            "n_jobs": 1
+          },
+          "feature_names": [
+            "mean",
+            "std",
+            "rms",
+            "max",
+            "min",
+            "peak_to_peak",
+            "skewness",
+            "kurtosis",
+            "crest_factor",
+            "signal_energy",
+            "spectral_centroid",
+            "spectral_entropy",
+            "psd_band_00_ratio",
+            "psd_band_01_ratio",
+            "psd_band_02_ratio",
+            "psd_band_03_ratio",
+            "psd_band_04_ratio"
+          ]
+        }
+      }
+    },
+    {
+      "held_out_load_hp": 2,
+      "counts": {
+        "train_healthy": 816,
+        "val_healthy": 172,
+        "test_healthy": 69,
+        "test_fault": 352
+      },
+      "fold_normalization": {
+        "mean": 0.012160089798271656,
+        "std": 0.06647461652755737
+      },
+      "models": {
+        "AE": {
+          "metrics": {
+            "auroc": 1.0,
+            "auprc": 1.0,
+            "f1": 1.0,
+            "precision": 1.0,
+            "recall_fault": 1.0,
+            "false_alarm_rate": 0.0,
+            "num_test_healthy": 69,
+            "num_test_fault": 352,
+            "num_predicted_anomalies": 352,
+            "num_true_anomalies": 352,
+            "parameter_count": 41409,
+            "final_train_loss": 0.13958446506191702,
+            "final_val_loss": 0.13853425341983175,
+            "threshold": 0.25534268468618393
+          },
+          "threshold_meta": {
+            "rule": "mean_plus_3std",
+            "threshold": 0.25534268468618393,
+            "validation_error_mean": 0.13853424787521362,
+            "validation_error_std": 0.03893614560365677,
+            "fit_split": "val_healthy"
+          },
+          "history": {
+            "train_loss": [
+              1.0055914965330386,
+              0.9041592245008431,
+              0.7740834916339201,
+              0.6705227774732253,
+              0.6446032547483257,
+              0.6310642104522854,
+              0.6127911829480938,
+              0.5691069306111803,
+              0.4371919222906524,
+              0.23713846621560117,
+              0.20163618933920766,
+              0.18409821712503247,
+              0.17367626200704014,
+              0.1651694935326483,
+              0.15772389489061692,
+              0.16006242206283644,
+              0.15749859020990484,
+              0.14761675514426886,
+              0.14280112438342152,
+              0.13958446506191702
+            ],
+            "val_loss": [
+              0.9947119715601899,
+              0.826277895029201,
+              0.6967400118362072,
+              0.6542218424553095,
+              0.641216958678046,
+              0.6290360481240028,
+              0.5995230452958927,
+              0.5443512339924657,
+              0.2772621754990068,
+              0.21993704729301986,
+              0.19084606267685114,
+              0.17763470251892888,
+              0.16892704229022182,
+              0.16108591230802757,
+              0.15392627064571823,
+              0.16889463954193648,
+              0.14925251138764759,
+              0.14441824998966482,
+              0.14131538985773576,
+              0.13853425341983175
+            ]
+          },
+          "batch_shape_check": {
+            "input": [
+              64,
+              1,
+              2048
+            ],
+            "output": [
+              64,
+              1,
+              2048
+            ]
+          }
+        },
+        "OC-SVM": {
+          "metrics": {
+            "auroc": 1.0,
+            "auprc": 1.0,
+            "f1": 1.0,
+            "precision": 1.0,
+            "recall_fault": 1.0,
+            "false_alarm_rate": 0.0,
+            "num_test_healthy": 69,
+            "num_test_fault": 352,
+            "num_predicted_anomalies": 352,
+            "num_true_anomalies": 352,
+            "threshold": 1.0504816770553589,
+            "feature_count": 17
+          },
+          "threshold_meta": {
+            "rule": "mean_plus_3std",
+            "threshold": 1.0504816770553589,
+            "validation_score_mean": -0.9068278074264526,
+            "validation_score_std": 0.6524364948272705,
+            "fit_split": "val_healthy"
+          },
+          "hyperparameters": {
+            "kernel": "rbf",
+            "gamma": "scale",
+            "nu": 0.05
+          },
+          "feature_names": [
+            "mean",
+            "std",
+            "rms",
+            "max",
+            "min",
+            "peak_to_peak",
+            "skewness",
+            "kurtosis",
+            "crest_factor",
+            "signal_energy",
+            "spectral_centroid",
+            "spectral_entropy",
+            "psd_band_00_ratio",
+            "psd_band_01_ratio",
+            "psd_band_02_ratio",
+            "psd_band_03_ratio",
+            "psd_band_04_ratio"
+          ]
+        },
+        "Isolation Forest": {
+          "metrics": {
+            "auroc": 1.0,
+            "auprc": 0.9999999999999999,
+            "f1": 1.0,
+            "precision": 1.0,
+            "recall_fault": 1.0,
+            "false_alarm_rate": 0.0,
+            "num_test_healthy": 69,
+            "num_test_fault": 352,
+            "num_predicted_anomalies": 352,
+            "num_true_anomalies": 352,
+            "threshold": 0.08963306620717049,
+            "feature_count": 17
+          },
+          "threshold_meta": {
+            "rule": "mean_plus_3std",
+            "threshold": 0.08963306620717049,
+            "validation_score_mean": -0.0422164611518383,
+            "validation_score_std": 0.04394984245300293,
+            "fit_split": "val_healthy"
+          },
+          "hyperparameters": {
+            "n_estimators": 300,
+            "max_samples": 256,
+            "contamination": "auto",
+            "random_state": 42,
+            "n_jobs": 1
+          },
+          "feature_names": [
+            "mean",
+            "std",
+            "rms",
+            "max",
+            "min",
+            "peak_to_peak",
+            "skewness",
+            "kurtosis",
+            "crest_factor",
+            "signal_energy",
+            "spectral_centroid",
+            "spectral_entropy",
+            "psd_band_00_ratio",
+            "psd_band_01_ratio",
+            "psd_band_02_ratio",
+            "psd_band_03_ratio",
+            "psd_band_04_ratio"
+          ]
+        }
+      }
+    },
+    {
+      "held_out_load_hp": 3,
+      "counts": {
+        "train_healthy": 815,
+        "val_healthy": 172,
+        "test_healthy": 69,
+        "test_fault": 354
+      },
+      "fold_normalization": {
+        "mean": 0.01208494696766138,
+        "std": 0.06591953337192535
+      },
+      "models": {
+        "AE": {
+          "metrics": {
+            "auroc": 1.0,
+            "auprc": 0.9999999999999998,
+            "f1": 0.9806094182825484,
+            "precision": 0.9619565217391305,
+            "recall_fault": 1.0,
+            "false_alarm_rate": 0.2028985507246377,
+            "num_test_healthy": 69,
+            "num_test_fault": 354,
+            "num_predicted_anomalies": 368,
+            "num_true_anomalies": 354,
+            "parameter_count": 41409,
+            "final_train_loss": 0.1309698916103211,
+            "final_val_loss": 0.13114294756290523,
+            "threshold": 0.2045981101691723
+          },
+          "threshold_meta": {
+            "rule": "mean_plus_3std",
+            "threshold": 0.2045981101691723,
+            "validation_error_mean": 0.13114294409751892,
+            "validation_error_std": 0.02448505535721779,
+            "fit_split": "val_healthy"
+          },
+          "history": {
+            "train_loss": [
+              1.0054097203389267,
+              0.8996719491993723,
+              0.7693546645480431,
+              0.6674459142187622,
+              0.6415873958289258,
+              0.6305741673598261,
+              0.6176663683236011,
+              0.5816739908756654,
+              0.44092144574855735,
+              0.23128146424980983,
+              0.19193746295809014,
+              0.17269490333788234,
+              0.16273790354743325,
+              0.15572489492732322,
+              0.14962004863777043,
+              0.14365797423146254,
+              0.13852210284376437,
+              0.1343938947272447,
+              0.1415969433045826,
+              0.1309698916103211
+            ],
+            "val_loss": [
+              0.9844073611636495,
+              0.8180934398673302,
+              0.6868945166122081,
+              0.6453444846840792,
+              0.634533004705296,
+              0.6254585995230564,
+              0.6051837164302205,
+              0.5416765344697375,
+              0.2632700128610744,
+              0.2109868782897328,
+              0.17703226728494778,
+              0.1663240433432335,
+              0.15919506411219753,
+              0.1530007726924364,
+              0.1471574195595675,
+              0.1417888267788776,
+              0.13732193722281344,
+              0.1473945954511332,
+              0.1344863186741984,
+              0.13114294756290523
+            ]
+          },
+          "batch_shape_check": {
+            "input": [
+              64,
+              1,
+              2048
+            ],
+            "output": [
+              64,
+              1,
+              2048
+            ]
+          }
+        },
+        "OC-SVM": {
+          "metrics": {
+            "auroc": 1.0,
+            "auprc": 1.0,
+            "f1": 0.9874476987447699,
+            "precision": 0.9752066115702479,
+            "recall_fault": 1.0,
+            "false_alarm_rate": 0.13043478260869565,
+            "num_test_healthy": 69,
+            "num_test_fault": 354,
+            "num_predicted_anomalies": 363,
+            "num_true_anomalies": 354,
+            "threshold": 0.8953188061714172,
+            "feature_count": 17
+          },
+          "threshold_meta": {
+            "rule": "mean_plus_3std",
+            "threshold": 0.8953188061714172,
+            "validation_score_mean": -0.8356388807296753,
+            "validation_score_std": 0.5769858956336975,
+            "fit_split": "val_healthy"
+          },
+          "hyperparameters": {
+            "kernel": "rbf",
+            "gamma": "scale",
+            "nu": 0.05
+          },
+          "feature_names": [
+            "mean",
+            "std",
+            "rms",
+            "max",
+            "min",
+            "peak_to_peak",
+            "skewness",
+            "kurtosis",
+            "crest_factor",
+            "signal_energy",
+            "spectral_centroid",
+            "spectral_entropy",
+            "psd_band_00_ratio",
+            "psd_band_01_ratio",
+            "psd_band_02_ratio",
+            "psd_band_03_ratio",
+            "psd_band_04_ratio"
+          ]
+        },
+        "Isolation Forest": {
+          "metrics": {
+            "auroc": 1.0,
+            "auprc": 0.9999999999999999,
+            "f1": 0.9902097902097902,
+            "precision": 0.9806094182825484,
+            "recall_fault": 1.0,
+            "false_alarm_rate": 0.10144927536231885,
+            "num_test_healthy": 69,
+            "num_test_fault": 354,
+            "num_predicted_anomalies": 361,
+            "num_true_anomalies": 354,
+            "threshold": 0.08548788726329803,
+            "feature_count": 17
+          },
+          "threshold_meta": {
+            "rule": "mean_plus_3std",
+            "threshold": 0.08548788726329803,
+            "validation_score_mean": -0.05024612694978714,
+            "validation_score_std": 0.045244671404361725,
+            "fit_split": "val_healthy"
+          },
+          "hyperparameters": {
+            "n_estimators": 300,
+            "max_samples": 256,
+            "contamination": "auto",
+            "random_state": 42,
+            "n_jobs": 1
+          },
+          "feature_names": [
+            "mean",
+            "std",
+            "rms",
+            "max",
+            "min",
+            "peak_to_peak",
+            "skewness",
+            "kurtosis",
+            "crest_factor",
+            "signal_energy",
+            "spectral_centroid",
+            "spectral_entropy",
+            "psd_band_00_ratio",
+            "psd_band_01_ratio",
+            "psd_band_02_ratio",
+            "psd_band_03_ratio",
+            "psd_band_04_ratio"
+          ]
+        }
+      }
+    }
+  ],
+  "summary": {
+    "AE": {
+      "auroc": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "auprc": {
+        "mean": 1.0,
+        "std": 9.614813431917819e-17
+      },
+      "f1": {
+        "mean": 0.9836658680841506,
+        "std": 0.01884017745691024
+      },
+      "precision": {
+        "mean": 0.9685253061453769,
+        "std": 0.036066723111028744
+      },
+      "recall_fault": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "false_alarm_rate": {
+        "mean": 0.3007246376811594,
+        "std": 0.41213668577678814
+      }
+    },
+    "OC-SVM": {
+      "auroc": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "auprc": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "f1": {
+        "mean": 0.9801743286296644,
+        "std": 0.016801680620438755
+      },
+      "precision": {
+        "mean": 0.9616476112118519,
+        "std": 0.032058894760917625
+      },
+      "recall_fault": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "false_alarm_rate": {
+        "mean": 0.33695652173913043,
+        "std": 0.3905487874613409
+      }
+    },
+    "Isolation Forest": {
+      "auroc": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "auprc": {
+        "mean": 1.0,
+        "std": 5.551115123125783e-17
+      },
+      "f1": {
+        "mean": 0.986006124462098,
+        "std": 0.0173251336705416
+      },
+      "precision": {
+        "mean": 0.972964683087191,
+        "std": 0.0331380340782402
+      },
+      "recall_fault": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "false_alarm_rate": {
+        "mean": 0.2679028132992327,
+        "std": 0.39046689821168656
+      }
+    }
+  },
+  "advantage_note": "AE does not hold a clean overall advantage under load shift; the shallow baselines are at least competitive on both mean F1 and false alarm rate."
+}

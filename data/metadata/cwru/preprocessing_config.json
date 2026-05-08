@@ -1,9 +1,9 @@
 {
   "dataset": "cwru",
-  "file_map_path": "D:/University of Rajshahi/Research/VibeTwin/data/metadata/cwru/file_map.csv",
-  "raw_root": "D:/University of Rajshahi/Research/VibeTwin/data/raw/cwru",
-  "processed_root": "D:/University of Rajshahi/Research/VibeTwin/data/processed/cwru",
-  "metadata_root": "D:/University of Rajshahi/Research/VibeTwin/data/metadata/cwru",
+  "file_map_path": "data/metadata/cwru/file_map.csv",
+  "raw_root": "data/raw/cwru",
+  "processed_root": "data/processed/cwru",
+  "metadata_root": "data/metadata/cwru",
   "channel": "drive_end",
   "channel_suffix": "_DE_time",
   "window_size": 2048,

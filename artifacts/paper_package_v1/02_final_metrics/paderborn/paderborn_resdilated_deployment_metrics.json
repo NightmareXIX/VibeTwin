@@ -1,0 +1,394 @@
+{
+  "study": "paderborn_resdilated_ae_deployment_metrics",
+  "model": "ResDilatedAE",
+  "final_threshold_rule": "percentile_99_5",
+  "seed": 123,
+  "processed_root": "data/processed/paderborn",
+  "metadata_root": "data/metadata/paderborn",
+  "benchmarking": {
+    "cpu_only": true,
+    "torch_num_threads": 1,
+    "torch_num_interop_threads": null,
+    "single_runs": 120,
+    "batch_runs": 40,
+    "batch_sizes": [
+      32,
+      64
+    ],
+    "warmup_runs": 12,
+    "benchmark_pool_shape": [
+      512,
+      2048
+    ]
+  },
+  "models": {
+    "ResDilatedAE": {
+      "checkpoint_path": "artifacts/generative_upgrades/resdilated_ae/seed_123/checkpoints/best.pt",
+      "threshold": 0.0004917661461513468,
+      "parameter_count": 222657,
+      "weights_only_size_bytes": 919607,
+      "checkpoint_size_bytes": 924855,
+      "saved_detection_metrics": {
+        "auroc": 0.8659401784310445,
+        "auprc": 0.9951618239259459,
+        "f1": 0.782121109766281,
+        "precision": 0.9996132699375836,
+        "recall_fault": 0.6423590107150701,
+        "false_alarm_rate": 0.00763946464526827,
+        "num_test_healthy": 16886,
+        "num_test_fault": 519082,
+        "num_predicted_anomalies": 333566,
+        "num_true_anomalies": 519082,
+        "threshold": 0.0004917661461513468
+      },
+      "cpu_benchmark": {
+        "single_window": {
+          "mean_ms": 8.832426666443402,
+          "std_ms": 2.7676827248335103,
+          "p95_ms": 12.472700000216719,
+          "min_ms": 7.372899999609217,
+          "max_ms": 34.27519999968354,
+          "throughput_windows_per_sec": 113.21916815898967
+        },
+        "batch": {
+          "32": {
+            "mean_ms": 193.667380000079,
+            "std_ms": 17.988006128961203,
+            "p95_ms": 224.0460000029998,
+            "min_ms": 175.90500000005704,
+            "max_ms": 257.4209999984305,
+            "throughput_windows_per_sec": 165.2317494045045
+          },
+          "64": {
+            "mean_ms": 403.24348499989355,
+            "std_ms": 22.449971320167936,
+            "p95_ms": 443.5282000013103,
+            "min_ms": 372.39149999732035,
+            "max_ms": 448.9525999997568,
+            "throughput_windows_per_sec": 158.7130415759027
+          }
+        },
+        "memory_rss": {
+          "baseline_bytes": 622129152,
+          "after_model_ready_bytes": 635506688,
+          "peak_bytes": 792076288,
+          "load_delta_bytes": 13377536,
+          "peak_delta_bytes": 169947136
+        },
+        "benchmark_pool": {
+          "window_count": 512,
+          "window_size": 2048
+        }
+      }
+    },
+    "CompactAE": {
+      "checkpoint_path": "artifacts/models/paderborn_ae_baseline.pt",
+      "parameter_count": 41409,
+      "weights_only_size_bytes": 172263,
+      "checkpoint_size_bytes": 174099,
+      "saved_detection_metrics": {
+        "auroc": 0.5462293852655394,
+        "auprc": 0.9763607857260257,
+        "f1": 0.26079864140856723,
+        "precision": 0.9981155537323574,
+        "recall_fault": 0.1499955691008357,
+        "false_alarm_rate": 0.008705436456235935,
+        "num_test_healthy": 16886,
+        "num_test_fault": 519082,
+        "num_predicted_anomalies": 78007,
+        "num_true_anomalies": 519082,
+        "threshold": 0.1648247018456459,
+        "threshold_rule": "mean_plus_3std",
+        "final_train_loss": 0.05478116413519384,
+        "final_val_loss": 0.052570514103807676,
+        "parameter_count": 41409,
+        "device": "cpu",
+        "batch_shape_check": {
+          "input": [
+            128,
+            1,
+            2048
+          ],
+          "output": [
+            128,
+            1,
+            2048
+          ]
+        },
+        "by_damage_group": {
+          "KA": {
+            "auroc": 0.5225496951945803,
+            "auprc": 0.9447210054816173,
+            "f1": 0.19400003015817965,
+            "precision": 0.9943194991884999,
+            "recall_fault": 0.10748569280253979,
+            "false_alarm_rate": 0.008705436456235935,
+            "num_test_healthy": 16886,
+            "num_test_fault": 239390,
+            "num_predicted_anomalies": 25878,
+            "num_true_anomalies": 239390,
+            "group_name": "KA"
+          },
+          "KB": {
+            "auroc": 0.7303470985482733,
+            "auprc": 0.9225922283218982,
+            "f1": 0.7062801516195727,
+            "precision": 0.995537476093622,
+            "recall_fault": 0.5472689952105202,
+            "false_alarm_rate": 0.008705436456235935,
+            "num_test_healthy": 16886,
+            "num_test_fault": 59923,
+            "num_predicted_anomalies": 32941,
+            "num_true_anomalies": 59923,
+            "group_name": "KB"
+          },
+          "KI": {
+            "auroc": 0.5218210077102229,
+            "auprc": 0.9391782912412352,
+            "f1": 0.16162941847682977,
+            "precision": 0.9924545734524176,
+            "recall_fault": 0.08797874131474412,
+            "false_alarm_rate": 0.008705436456235935,
+            "num_test_healthy": 16886,
+            "num_test_fault": 219769,
+            "num_predicted_anomalies": 19482,
+            "num_true_anomalies": 219769,
+            "group_name": "KI"
+          }
+        },
+        "by_condition": {
+          "N09_M07_F10": {
+            "auroc": 0.48047481234450184,
+            "auprc": 0.9682309333571614,
+            "f1": 0.06471329223842995,
+            "precision": 0.9856948228882834,
+            "recall_fault": 0.03345484251331335,
+            "false_alarm_rate": 0.01494661921708185,
+            "num_test_healthy": 4215,
+            "num_test_fault": 129757,
+            "num_predicted_anomalies": 4404,
+            "num_true_anomalies": 129757,
+            "condition_code": "N09_M07_F10"
+          },
+          "N15_M01_F10": {
+            "auroc": 0.5773250161871022,
+            "auprc": 0.9780223674937357,
+            "f1": 0.332728932782943,
+            "precision": 0.9969176234877091,
+            "recall_fault": 0.19968820424165715,
+            "false_alarm_rate": 0.01894387875917594,
+            "num_test_healthy": 4223,
+            "num_test_fault": 129572,
+            "num_predicted_anomalies": 25954,
+            "num_true_anomalies": 129572,
+            "condition_code": "N15_M01_F10"
+          },
+          "N15_M07_F04": {
+            "auroc": 0.5917592906733298,
+            "auprc": 0.9800352893568376,
+            "f1": 0.3197993172649219,
+            "precision": 0.9999191396458317,
+            "recall_fault": 0.1903369299204236,
+            "false_alarm_rate": 0.0004737091425864519,
+            "num_test_healthy": 4222,
+            "num_test_fault": 129938,
+            "num_predicted_anomalies": 24734,
+            "num_true_anomalies": 129938,
+            "condition_code": "N15_M07_F04"
+          },
+          "N15_M07_F10": {
+            "auroc": 0.5746419815931219,
+            "auprc": 0.9780043925605668,
+            "f1": 0.3000458325148956,
+            "precision": 0.9999127209251581,
+            "recall_fault": 0.1765050263836999,
+            "false_alarm_rate": 0.000473260766682442,
+            "num_test_healthy": 4226,
+            "num_test_fault": 129815,
+            "num_predicted_anomalies": 22915,
+            "num_true_anomalies": 129815,
+            "condition_code": "N15_M07_F10"
+          }
+        },
+        "label_provenance": {
+          "total_bearings": 32,
+          "verified_pdf_count": 0,
+          "inferred_family_rule_count": 32,
+          "healthy_bearing_count": 6,
+          "damaged_bearing_count": 26,
+          "damage_group_counts": {
+            "KA": 12,
+            "KB": 3,
+            "KI": 11
+          }
+        }
+      },
+      "cpu_benchmark": {
+        "single_window": {
+          "mean_ms": 1.5516916665546887,
+          "std_ms": 0.3449962994828302,
+          "p95_ms": 2.088100001856219,
+          "min_ms": 1.3045999985479284,
+          "max_ms": 4.092900002433453,
+          "throughput_windows_per_sec": 644.4579303698641
+        },
+        "batch": {
+          "32": {
+            "mean_ms": 42.08753499970044,
+            "std_ms": 11.38055807651179,
+            "p95_ms": 48.02689999996801,
+            "min_ms": 34.699199997703545,
+            "max_ms": 99.25510000175564,
+            "throughput_windows_per_sec": 760.3201280433212
+          },
+          "64": {
+            "mean_ms": 84.6882125000775,
+            "std_ms": 10.76057261479127,
+            "p95_ms": 89.9745000024268,
+            "min_ms": 75.79919999989215,
+            "max_ms": 130.4390000004787,
+            "throughput_windows_per_sec": 755.713199165013
+          }
+        },
+        "memory_rss": {
+          "baseline_bytes": 792084480,
+          "after_model_ready_bytes": 765419520,
+          "peak_bytes": 794963968,
+          "load_delta_bytes": -26664960,
+          "peak_delta_bytes": 2879488
+        },
+        "benchmark_pool": {
+          "window_count": 512,
+          "window_size": 2048
+        }
+      }
+    }
+  },
+  "comparisons": {
+    "IsolationForest": {
+      "saved_metrics": {
+        "auroc": 0.9142737319132881,
+        "auprc": 0.9967555268483105,
+        "f1": 0.6337899014723237,
+        "precision": 0.9994191088299607,
+        "recall_fault": 0.4640288046975237,
+        "false_alarm_rate": 0.008290891863081844,
+        "num_test_healthy": 16886,
+        "num_test_fault": 519082,
+        "num_predicted_anomalies": 241009,
+        "num_true_anomalies": 519082,
+        "threshold": 0.06803012639284134,
+        "threshold_rule": "mean_plus_3std",
+        "model_variant": "IsolationForest",
+        "by_damage_group": {
+          "KA": {
+            "auroc": 0.8893471428924054,
+            "auprc": 0.9905373538785678,
+            "f1": 0.5442135939442009,
+            "precision": 0.9984389460655866,
+            "recall_fault": 0.37404653494298007,
+            "false_alarm_rate": 0.008290891863081844,
+            "num_test_healthy": 16886,
+            "num_test_fault": 239390,
+            "num_predicted_anomalies": 89683,
+            "num_true_anomalies": 239390,
+            "group_name": "KA"
+          },
+          "KB": {
+            "auroc": 0.9645847816277168,
+            "auprc": 0.9905314105799813,
+            "f1": 0.8412990846218398,
+            "precision": 0.9968,
+            "recall_fault": 0.7277673013700916,
+            "false_alarm_rate": 0.008290891863081844,
+            "num_test_healthy": 16886,
+            "num_test_fault": 59923,
+            "num_predicted_anomalies": 43750,
+            "num_true_anomalies": 59923,
+            "group_name": "KB"
+          },
+          "KI": {
+            "auroc": 0.9277077790886012,
+            "auprc": 0.9937291780891158,
+            "f1": 0.6575566577642121,
+            "precision": 0.9987019730010385,
+            "recall_fault": 0.4901328212805264,
+            "false_alarm_rate": 0.008290891863081844,
+            "num_test_healthy": 16886,
+            "num_test_fault": 219769,
+            "num_predicted_anomalies": 107856,
+            "num_true_anomalies": 219769,
+            "group_name": "KI"
+          }
+        },
+        "by_condition": {
+          "N09_M07_F10": {
+            "auroc": 0.7699023224825094,
+            "auprc": 0.989099518067388,
+            "f1": 0.2687926196015171,
+            "precision": 0.995064653045109,
+            "recall_fault": 0.15538275391693704,
+            "false_alarm_rate": 0.02372479240806643,
+            "num_test_healthy": 4215,
+            "num_test_fault": 129757,
+            "num_predicted_anomalies": 20262,
+            "num_true_anomalies": 129757,
+            "condition_code": "N09_M07_F10"
+          },
+          "N15_M01_F10": {
+            "auroc": 0.9492941748676651,
+            "auprc": 0.9981647588551568,
+            "f1": 0.7548402594282969,
+            "precision": 0.9997709282496373,
+            "recall_fault": 0.6063038310746149,
+            "false_alarm_rate": 0.004262372720814586,
+            "num_test_healthy": 4223,
+            "num_test_fault": 129572,
+            "num_predicted_anomalies": 78578,
+            "num_true_anomalies": 129572,
+            "condition_code": "N15_M01_F10"
+          },
+          "N15_M07_F04": {
+            "auroc": 0.9469777496696143,
+            "auprc": 0.9980939915514221,
+            "f1": 0.6722489016041688,
+            "precision": 0.9998632260417617,
+            "recall_fault": 0.506341485939448,
+            "false_alarm_rate": 0.0021316911416390336,
+            "num_test_healthy": 4222,
+            "num_test_fault": 129938,
+            "num_predicted_anomalies": 65802,
+            "num_true_anomalies": 129938,
+            "condition_code": "N15_M07_F04"
+          },
+          "N15_M07_F10": {
+            "auroc": 0.9514449692223739,
+            "auprc": 0.9982527569554531,
+            "f1": 0.7406466131864081,
+            "precision": 0.9998297694030144,
+            "recall_fault": 0.5881754804914686,
+            "false_alarm_rate": 0.003076194983435873,
+            "num_test_healthy": 4226,
+            "num_test_fault": 129815,
+            "num_predicted_anomalies": 76367,
+            "num_true_anomalies": 129815,
+            "condition_code": "N15_M07_F10"
+          }
+        },
+        "label_provenance": {
+          "total_bearings": 32,
+          "verified_pdf_count": 0,
+          "inferred_family_rule_count": 32,
+          "healthy_bearing_count": 6,
+          "damaged_bearing_count": 26,
+          "damage_group_counts": {
+            "KA": 12,
+            "KB": 3,
+            "KI": 11
+          }
+        }
+      },
+      "benchmark_blocker": "no serialized Paderborn Isolation Forest estimator or scaler was saved under `artifacts/models/`; only metrics and score CSVs exist, so a real inference benchmark would require refitting the model, which would violate the no-retraining constraint."
+    }
+  }
+}

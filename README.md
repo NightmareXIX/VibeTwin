@@ -1,43 +1,49 @@
 # VibeTwin
 
-VibeTwin is a research codebase for healthy-only bearing fault detection using compact and residual-dilated autoencoder models, with experiments on CWRU and Paderborn vibration datasets. The repository is organized to keep the GitHub version lightweight and reproducible: source code, manuscript assets, and small metadata files are tracked, while raw datasets, processed arrays, checkpoints, and generated experiment artifacts stay local.
+VibeTwin is a healthy-reference reconstruction framework for bearing fault detection. It trains compact and residual-dilated autoencoder models on healthy vibration windows, then evaluates anomaly detection under CWRU load shift and Paderborn cross-benchmark settings.
 
-## What is in this repository
+This repository does not redistribute raw CWRU/Paderborn data, processed arrays, trained checkpoints, or bulky generated outputs.
 
-- `scripts/`: preprocessing, training, evaluation, explanation, and paper-packaging utilities
-- `data/metadata/cwru/`: CWRU metadata, inspection notes, and preprocessing audit files
-- `data/metadata/paderborn/`: Paderborn metadata, label mappings, preparation notes, and preprocessing configuration
-- `paper_latex/`: manuscript source, tables, figures, diagrams, and a compiled PDF snapshot
-- `readme_versions.txt`: local writing/version note preserved from the research workflow
+The repository contains source code, preprocessing metadata, manifest-generation utilities, selected split/provenance metadata, evaluation scripts, and compact result-provenance files.
 
-## What is intentionally not tracked
+## Repository Contents
 
-- `data/raw/`: original dataset files
-- `data/processed/`: generated window arrays and labels
-- `artifacts/`: checkpoints, metrics dumps, packaged exports, and generated figures
-- local virtual environments, caches, and temporary folders
+- `scripts/`: dataset preparation, preprocessing, training, evaluation, explanation, and paper-package utilities.
+- `data/metadata/`: compact dataset metadata, file maps, preprocessing configuration, label maps, and the tracked CWRU window manifest.
+- `reports/`: small release/provenance notes after local path scrubbing.
+- `artifacts/metrics/`: compact metrics and reports selected for provenance.
+- `artifacts/paper_package_v1/`: compact final metrics, reports, and candidate tables selected for paper review.
+- `paper_latex/`: manuscript source, tables, selected figures, diagrams, and a compiled snapshot.
 
-This follows normal GitHub practice for research repositories: publish the materials needed to understand and reproduce the pipeline, but do not upload large or license-sensitive datasets or machine-generated training outputs unless the project explicitly uses a release bucket, Git LFS, or an external data archive.
+## Quick Start
 
-## Datasets
+Use Python 3.11 or 3.12 for the safest CPU reproduction path. The current local environment used during release preparation reports Python 3.13.7, but some scientific and PyTorch stacks can be more fragile on Python 3.13 unless locally tested.
 
-The experiments rely on external bearing datasets that should be obtained separately:
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
 
-- CWRU
-- Paderborn
+For conda/mamba users, `environment.yml` provides a CPU-first environment.
 
-After downloading the datasets, place them under `data/raw/` using the layout expected by the preparation scripts. The metadata files committed in this repository document the naming conventions, label mappings, and preprocessing assumptions used in the experiments.
+## Dataset Setup
 
-## Reproducibility notes
+Raw datasets are not included. Obtain the Case Western Reserve University Bearing Data Center dataset and the Paderborn University/KAt-DataCenter bearing dataset from their official providers, then place local files under:
 
-1. Prepare the raw datasets.
-2. Run the dataset preparation and preprocessing scripts in `scripts/`.
-3. Train the baseline and generative models.
-4. Run the evaluation scripts to regenerate metrics and figures.
-5. Use `scripts/build_paper_package.py` if you want the full paper-support export locally.
+```text
+data/raw/cwru/
+data/raw/paderborn/
+```
 
-The repository does not currently version generated checkpoints or large manifests. Those can be recreated from the tracked scripts and metadata.
+See [DATASET_SETUP.md](DATASET_SETUP.md) for naming conventions, selected channels, Paderborn bearing lists, and metadata notes.
 
-## Python dependencies
+## Reproducibility
 
-Install dependencies from `requirements.txt`. PyTorch is required for the autoencoder and generative-model workflows.
+See [REPRODUCIBILITY.md](REPRODUCIBILITY.md) for the release scope, tracked versus omitted files, storage expectations, known limitations, and end-to-end reproduction stages.
+
+See [RUN_COMMANDS.md](RUN_COMMANDS.md) for preprocessing, training, evaluation, deployment-metric, and paper-package commands.
+
+See [RESULTS_PROVENANCE.md](RESULTS_PROVENANCE.md) for the mapping between paper tables/figures and the scripts, metrics, reports, and generated artifacts that support them.
+
+See [ARTIFACTS.md](ARTIFACTS.md) for the artifact retention policy and later Zenodo/OSF candidates.

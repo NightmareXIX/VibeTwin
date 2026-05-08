@@ -1,0 +1,4 @@
+model,params,weights_mb,checkpoint_mb,single_ms,batch64_ms,batch64_windows_per_sec,peak_rss_delta_mb,saved_f1,saved_auroc,note
+ResDilatedAE,222657,0.8770055770874023,0.8820104598999023,8.832426666443402,403.24348499989355,158.7130415759027,162.07421875,0.782121109766281,0.8659401784310445,
+CompactAE,41409,0.16428279876708984,0.16603374481201172,1.5516916665546887,84.6882125000775,755.713199165013,2.74609375,0.26079864140856723,0.5462293852655394,
+Isolation Forest,,,,,,,,0.6337899014723237,0.9142737319132881,"no serialized Paderborn Isolation Forest estimator or scaler was saved under `artifacts/models/`; only metrics and score CSVs exist, so a real inference benchmark would require refitting the model, which would violate the no-retraining constraint."
