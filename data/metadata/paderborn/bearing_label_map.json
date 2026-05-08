@@ -1,8 +1,8 @@
 {
   "dataset": "paderborn",
   "generated_from": {
-    "file_map_path": "D:/University of Rajshahi/Research/VibeTwin/data/metadata/paderborn/file_map.csv",
-    "raw_root": "D:/University of Rajshahi/Research/VibeTwin/data/raw/paderborn"
+    "file_map_path": "data/metadata/paderborn/file_map.csv",
+    "raw_root": "data/raw/paderborn"
   },
   "summary": {
     "total_bearings": 32,

@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "Please cite the conference paper when available."
+title: "VibeTwin: A Calibrated Healthy-Reference Reconstruction Framework for Bearing Fault Detection"
+version: "0.1.0"
+date-released: 2026-05-08
+repository-code: "https://github.com/NightmareXIX/VibeTwin"
+authors:
+  - family-names: "Islam"
+    given-names: "Kazi Fardin"

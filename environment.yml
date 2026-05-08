@@ -1,0 +1,18 @@
+name: vibetwin-cpu
+channels:
+  - pytorch
+  - conda-forge
+dependencies:
+  - python=3.12
+  - numpy
+  - scipy
+  - matplotlib
+  - scikit-learn
+  - h5py
+  - pyyaml
+  - tqdm
+  - joblib
+  - psutil
+  - pytorch
+  - cpuonly
+  - pip

@@ -1,0 +1,137 @@
+{
+  "auroc": 0.5462293852655394,
+  "auprc": 0.9763607857260257,
+  "f1": 0.26079864140856723,
+  "precision": 0.9981155537323574,
+  "recall_fault": 0.1499955691008357,
+  "false_alarm_rate": 0.008705436456235935,
+  "num_test_healthy": 16886,
+  "num_test_fault": 519082,
+  "num_predicted_anomalies": 78007,
+  "num_true_anomalies": 519082,
+  "threshold": 0.1648247018456459,
+  "threshold_rule": "mean_plus_3std",
+  "final_train_loss": 0.05478116413519384,
+  "final_val_loss": 0.052570514103807676,
+  "parameter_count": 41409,
+  "device": "cpu",
+  "batch_shape_check": {
+    "input": [
+      128,
+      1,
+      2048
+    ],
+    "output": [
+      128,
+      1,
+      2048
+    ]
+  },
+  "by_damage_group": {
+    "KA": {
+      "auroc": 0.5225496951945803,
+      "auprc": 0.9447210054816173,
+      "f1": 0.19400003015817965,
+      "precision": 0.9943194991884999,
+      "recall_fault": 0.10748569280253979,
+      "false_alarm_rate": 0.008705436456235935,
+      "num_test_healthy": 16886,
+      "num_test_fault": 239390,
+      "num_predicted_anomalies": 25878,
+      "num_true_anomalies": 239390,
+      "group_name": "KA"
+    },
+    "KB": {
+      "auroc": 0.7303470985482733,
+      "auprc": 0.9225922283218982,
+      "f1": 0.7062801516195727,
+      "precision": 0.995537476093622,
+      "recall_fault": 0.5472689952105202,
+      "false_alarm_rate": 0.008705436456235935,
+      "num_test_healthy": 16886,
+      "num_test_fault": 59923,
+      "num_predicted_anomalies": 32941,
+      "num_true_anomalies": 59923,
+      "group_name": "KB"
+    },
+    "KI": {
+      "auroc": 0.5218210077102229,
+      "auprc": 0.9391782912412352,
+      "f1": 0.16162941847682977,
+      "precision": 0.9924545734524176,
+      "recall_fault": 0.08797874131474412,
+      "false_alarm_rate": 0.008705436456235935,
+      "num_test_healthy": 16886,
+      "num_test_fault": 219769,
+      "num_predicted_anomalies": 19482,
+      "num_true_anomalies": 219769,
+      "group_name": "KI"
+    }
+  },
+  "by_condition": {
+    "N09_M07_F10": {
+      "auroc": 0.48047481234450184,
+      "auprc": 0.9682309333571614,
+      "f1": 0.06471329223842995,
+      "precision": 0.9856948228882834,
+      "recall_fault": 0.03345484251331335,
+      "false_alarm_rate": 0.01494661921708185,
+      "num_test_healthy": 4215,
+      "num_test_fault": 129757,
+      "num_predicted_anomalies": 4404,
+      "num_true_anomalies": 129757,
+      "condition_code": "N09_M07_F10"
+    },
+    "N15_M01_F10": {
+      "auroc": 0.5773250161871022,
+      "auprc": 0.9780223674937357,
+      "f1": 0.332728932782943,
+      "precision": 0.9969176234877091,
+      "recall_fault": 0.19968820424165715,
+      "false_alarm_rate": 0.01894387875917594,
+      "num_test_healthy": 4223,
+      "num_test_fault": 129572,
+      "num_predicted_anomalies": 25954,
+      "num_true_anomalies": 129572,
+      "condition_code": "N15_M01_F10"
+    },
+    "N15_M07_F04": {
+      "auroc": 0.5917592906733298,
+      "auprc": 0.9800352893568376,
+      "f1": 0.3197993172649219,
+      "precision": 0.9999191396458317,
+      "recall_fault": 0.1903369299204236,
+      "false_alarm_rate": 0.0004737091425864519,
+      "num_test_healthy": 4222,
+      "num_test_fault": 129938,
+      "num_predicted_anomalies": 24734,
+      "num_true_anomalies": 129938,
+      "condition_code": "N15_M07_F04"
+    },
+    "N15_M07_F10": {
+      "auroc": 0.5746419815931219,
+      "auprc": 0.9780043925605668,
+      "f1": 0.3000458325148956,
+      "precision": 0.9999127209251581,
+      "recall_fault": 0.1765050263836999,
+      "false_alarm_rate": 0.000473260766682442,
+      "num_test_healthy": 4226,
+      "num_test_fault": 129815,
+      "num_predicted_anomalies": 22915,
+      "num_true_anomalies": 129815,
+      "condition_code": "N15_M07_F10"
+    }
+  },
+  "label_provenance": {
+    "total_bearings": 32,
+    "verified_pdf_count": 0,
+    "inferred_family_rule_count": 32,
+    "healthy_bearing_count": 6,
+    "damaged_bearing_count": 26,
+    "damage_group_counts": {
+      "KA": 12,
+      "KB": 3,
+      "KI": 11
+    }
+  }
+}

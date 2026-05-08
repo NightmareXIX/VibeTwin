@@ -1,0 +1,122 @@
+{
+  "auroc": 0.5770906815137827,
+  "auprc": 0.9762271810547409,
+  "f1": 0.000319744204636291,
+  "precision": 1.0,
+  "recall_fault": 0.0001598976654940838,
+  "false_alarm_rate": 0.0,
+  "num_test_healthy": 16886,
+  "num_test_fault": 519082,
+  "num_predicted_anomalies": 83,
+  "num_true_anomalies": 519082,
+  "threshold": 0.00042479869443923235,
+  "threshold_rule": "mean_plus_3std",
+  "model_variant": "SGDOneClassSVM_linear_full_train",
+  "by_damage_group": {
+    "KA": {
+      "auroc": 0.5923801315561927,
+      "auprc": 0.9479173418447098,
+      "f1": 0.0005261992958952279,
+      "precision": 1.0,
+      "recall_fault": 0.00026316888758928943,
+      "false_alarm_rate": 0.0,
+      "num_test_healthy": 16886,
+      "num_test_fault": 239390,
+      "num_predicted_anomalies": 63,
+      "num_true_anomalies": 239390,
+      "group_name": "KA"
+    },
+    "KB": {
+      "auroc": 0.34474705743269496,
+      "auprc": 0.7388857162228137,
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall_fault": 0.0,
+      "false_alarm_rate": 0.0,
+      "num_test_healthy": 16886,
+      "num_test_fault": 59923,
+      "num_predicted_anomalies": 0,
+      "num_true_anomalies": 59923,
+      "group_name": "KB"
+    },
+    "KI": {
+      "auroc": 0.6237878296109141,
+      "auprc": 0.9540386695095348,
+      "f1": 0.00018199272939046086,
+      "precision": 1.0,
+      "recall_fault": 9.100464578716743e-05,
+      "false_alarm_rate": 0.0,
+      "num_test_healthy": 16886,
+      "num_test_fault": 219769,
+      "num_predicted_anomalies": 20,
+      "num_true_anomalies": 219769,
+      "group_name": "KI"
+    }
+  },
+  "by_condition": {
+    "N09_M07_F10": {
+      "auroc": 0.6997043620664746,
+      "auprc": 0.9848541147817573,
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall_fault": 0.0,
+      "false_alarm_rate": 0.0,
+      "num_test_healthy": 4215,
+      "num_test_fault": 129757,
+      "num_predicted_anomalies": 0,
+      "num_true_anomalies": 129757,
+      "condition_code": "N09_M07_F10"
+    },
+    "N15_M01_F10": {
+      "auroc": 0.5112819641860074,
+      "auprc": 0.9732266625028281,
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall_fault": 0.0,
+      "false_alarm_rate": 0.0,
+      "num_test_healthy": 4223,
+      "num_test_fault": 129572,
+      "num_predicted_anomalies": 0,
+      "num_true_anomalies": 129572,
+      "condition_code": "N15_M01_F10"
+    },
+    "N15_M07_F04": {
+      "auroc": 0.5955764547883089,
+      "auprc": 0.9770302183144792,
+      "f1": 0.0010768568088117653,
+      "precision": 1.0,
+      "recall_fault": 0.0005387184657298096,
+      "false_alarm_rate": 0.0,
+      "num_test_healthy": 4222,
+      "num_test_fault": 129938,
+      "num_predicted_anomalies": 70,
+      "num_true_anomalies": 129938,
+      "condition_code": "N15_M07_F04"
+    },
+    "N15_M07_F10": {
+      "auroc": 0.5107414444805223,
+      "auprc": 0.9725748218505845,
+      "f1": 0.0002002649659549558,
+      "precision": 1.0,
+      "recall_fault": 0.00010014251049570543,
+      "false_alarm_rate": 0.0,
+      "num_test_healthy": 4226,
+      "num_test_fault": 129815,
+      "num_predicted_anomalies": 13,
+      "num_true_anomalies": 129815,
+      "condition_code": "N15_M07_F10"
+    }
+  },
+  "label_provenance": {
+    "total_bearings": 32,
+    "verified_pdf_count": 0,
+    "inferred_family_rule_count": 32,
+    "healthy_bearing_count": 6,
+    "damaged_bearing_count": 26,
+    "damage_group_counts": {
+      "KA": 12,
+      "KB": 3,
+      "KI": 11
+    }
+  }
+}

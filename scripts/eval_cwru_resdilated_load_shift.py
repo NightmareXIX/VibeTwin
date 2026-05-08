@@ -173,7 +173,7 @@ def build_root_output_dir(*, artifacts_root: Path, seed: int) -> Path:
 
 def build_manual_command(args: argparse.Namespace, held_out_load_hp: int, *, resume: bool = False) -> str:
     command = [
-        r".\.venv-cuda\Scripts\python.exe",
+        r"python",
         "scripts/eval_cwru_resdilated_load_shift.py",
         "--held-out-loads",
         str(held_out_load_hp),

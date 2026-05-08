@@ -1,4 +1,4 @@
-# Python caches and virtual environments
+# Python caches and local environments
 __pycache__/
 *.py[cod]
 *.pyo
@@ -6,25 +6,76 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ipynb_checkpoints/
-**/.venv*/
 .venv*/
+**/.venv*/
 
-# Local temp and download folders
+# Local temp and logs
 .tmp-python/
 tmp/
 temp/
 logs/
+
+# Download/vendor scratch folders
+wheels/
 **/wheels/
+torch_extract_test/
 **/torch_extract_test*/
 
-# Research data: keep metadata, exclude raw and processed datasets
+# External datasets and generated arrays
 data/raw/
 data/processed/
-data/metadata/cwru/window_manifest.csv
+*.npy
+*.npz
+
+# Model/checkpoint artifacts
+*.pt
+*.pth
+*.ckpt
+*.joblib
+
+# Per-window/generated score exports
+*_scores.csv
+per_window_predictions*.csv
+
+# Keep safe metadata trackable
+!data/metadata/
+!data/metadata/**/
+!data/metadata/**/*.json
+!data/metadata/**/*.csv
+!data/metadata/**/*.md
+!data/metadata/cwru/window_manifest.csv
+
+# Paderborn window manifest is metadata-only but too large as plain CSV.
 data/metadata/paderborn/window_manifest.csv
 
-# Training outputs and generated research artifacts
-artifacts/
+# Generated artifacts: ignore by default
+artifacts/*
+!artifacts/metrics/
+!artifacts/metrics/*.json
+!artifacts/metrics/*.md
+
+!artifacts/paper_package_v1/
+artifacts/paper_package_v1/*
+!artifacts/paper_package_v1/paper_package_manifest.csv
+!artifacts/paper_package_v1/paper_package_overall_report.md
+!artifacts/paper_package_v1/02_final_metrics/
+!artifacts/paper_package_v1/02_final_metrics/**/
+!artifacts/paper_package_v1/02_final_metrics/**/*.json
+!artifacts/paper_package_v1/03_final_reports/
+!artifacts/paper_package_v1/03_final_reports/**/
+!artifacts/paper_package_v1/03_final_reports/**/*.md
+!artifacts/paper_package_v1/05_candidate_tables/
+!artifacts/paper_package_v1/05_candidate_tables/*
+
+# Reports are small release/provenance notes
+reports/*
+!reports/
+!reports/**/
+!reports/**/*.md
+
+# Generated packages
+artifacts/**/*.zip
+*.zip
 
 # LaTeX build outputs
 paper_latex/*.aux
