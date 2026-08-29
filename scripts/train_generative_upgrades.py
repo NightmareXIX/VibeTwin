@@ -64,7 +64,7 @@ BASELINE_IFOREST_METRICS_PATH = ARTIFACTS_ROOT / "metrics" / "paderborn_iforest_
 nn = torch.nn if torch is not None else None
 F = torch.nn.functional if torch is not None else None
 ModuleBase = nn.Module if nn is not None else object
-MODEL_CHOICES = ("resdilated_ae", "conv_vae", "denoising_resdilated_ae")
+MODEL_CHOICES = ("resdilated_ae", "conv_vae", "denoising_resdilated_ae", "memae")
 MEMAE_MEMORY_SIZE = 500
 MEMAE_ENTROPY_WEIGHT = 2e-4
 MEMAE_EPSILON = 1e-12
@@ -517,6 +517,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--freq-loss-weight", type=float, default=0.10)
     parser.add_argument("--vae-beta-max", type=float, default=1e-3)
     parser.add_argument("--vae-kl-warmup-epochs", type=int, default=10)
+    parser.add_argument("--memae-memory-size", type=int, default=MEMAE_MEMORY_SIZE)
+    parser.add_argument(
+        "--memae-shrink-threshold",
+        type=float,
+        default=None,
+        help="Hard shrinkage lambda. Defaults to the paper's midpoint, 2 / memory_size.",
+    )
+    parser.add_argument("--memae-entropy-weight", type=float, default=MEMAE_ENTROPY_WEIGHT)
     parser.add_argument("--dropout", type=float, default=0.05)
     parser.add_argument("--train-subset", type=int, default=0)
     parser.add_argument("--val-subset", type=int, default=0)
@@ -623,7 +631,13 @@ def apply_denoising_corruption(
     return outputs
 
 
-def build_models(window_size: int, dropout: float) -> list[tuple[ModelRunConfig, nn.Module]]:
+def build_models(
+    window_size: int,
+    dropout: float,
+    *,
+    memae_memory_size: int = MEMAE_MEMORY_SIZE,
+    memae_shrink_threshold: float | None = None,
+) -> list[tuple[ModelRunConfig, nn.Module]]:
     return [
         (
             ModelRunConfig(
@@ -652,6 +666,20 @@ def build_models(window_size: int, dropout: float) -> list[tuple[ModelRunConfig,
                 denoising=True,
             ),
             ResDilatedAE(base_channels=16, dropout=dropout),
+        ),
+        (
+            ModelRunConfig(
+                name="MemAE",
+                cli_name="memae",
+                output_stem="memae",
+                model_kind="memae",
+            ),
+            MemAE(
+                base_channels=24,
+                memory_size=memae_memory_size,
+                shrink_threshold=memae_shrink_threshold,
+                dropout=dropout,
+            ),
         ),
     ]
 
@@ -747,10 +775,12 @@ def build_empty_history() -> dict[str, list[float]]:
         "train_time_loss": [],
         "train_freq_loss": [],
         "train_kl_loss": [],
+        "train_mem_loss": [],
         "val_total_loss": [],
         "val_time_loss": [],
         "val_freq_loss": [],
         "val_kl_loss": [],
+        "val_mem_loss": [],
         "beta": [],
         "lr": [],
     }
@@ -974,12 +1004,14 @@ def evaluate_epoch(
     freq_loss_weight: float,
     beta: float,
     model_kind: str,
+    memae_entropy_weight: float = 0.0,
 ) -> dict[str, float]:
     model.eval()
     total_loss = 0.0
     total_time = 0.0
     total_freq = 0.0
     total_kl = 0.0
+    total_mem = 0.0
     total_samples = 0
     with torch.no_grad():
         for batch in loader:
@@ -988,17 +1020,27 @@ def evaluate_epoch(
                 reconstruction, mu, logvar = model(batch)
                 time_loss = F.mse_loss(reconstruction.float(), batch.float(), reduction="mean")
                 kl_loss = compute_vae_kl(mu.float(), logvar.float())
+                mem_loss = torch.zeros((), device=device)
+            elif model_kind == "memae":
+                reconstruction, attention = model(batch)
+                time_loss = F.mse_loss(reconstruction.float(), batch.float(), reduction="mean")
+                kl_loss = torch.zeros((), device=device)
+                mem_loss = memory_entropy_loss(attention.float())
             else:
                 reconstruction = model(batch)
                 time_loss = F.mse_loss(reconstruction.float(), batch.float(), reduction="mean")
                 kl_loss = torch.zeros((), device=device)
+                mem_loss = torch.zeros((), device=device)
             freq_loss = compute_frequency_loss(reconstruction, batch) if freq_loss_weight > 0 else torch.zeros((), device=device)
-            total_batch_loss = time_loss + (freq_loss_weight * freq_loss) + (beta * kl_loss)
+            total_batch_loss = (
+                time_loss + (freq_loss_weight * freq_loss) + (beta * kl_loss) + (memae_entropy_weight * mem_loss)
+            )
             batch_size = int(batch.shape[0])
             total_loss += float(total_batch_loss.item()) * batch_size
             total_time += float(time_loss.item()) * batch_size
             total_freq += float(freq_loss.item()) * batch_size
             total_kl += float(kl_loss.item()) * batch_size
+            total_mem += float(mem_loss.item()) * batch_size
             total_samples += batch_size
     divisor = max(total_samples, 1)
     return {
@@ -1006,6 +1048,7 @@ def evaluate_epoch(
         "time_loss": total_time / divisor,
         "freq_loss": total_freq / divisor,
         "kl_loss": total_kl / divisor,
+        "mem_loss": total_mem / divisor,
     }
 
 
@@ -1022,12 +1065,16 @@ def train_single_model(
     freq_loss_weight: float,
     vae_beta_max: float,
     vae_warmup_epochs: int,
+    memae_entropy_weight: float,
     run_paths: RunPaths,
     seed: int,
     save_every_epochs: int,
     resume: bool,
     training_settings: dict[str, Any],
 ) -> dict[str, Any]:
+    # MemAE's decoder reads only from the memory bottleneck, so a frequency-domain
+    # loss term (designed to sharpen skip-connected AE detail) does not apply to it.
+    freq_loss_weight = 0.0 if run_config.model_kind == "memae" else freq_loss_weight
     model = model.to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(epochs, 1))
@@ -1146,6 +1193,7 @@ def train_single_model(
                 epoch_time = 0.0
                 epoch_freq = 0.0
                 epoch_kl = 0.0
+                epoch_mem = 0.0
                 sample_count = 0
 
                 for batch in loaders["train"]:
@@ -1158,16 +1206,28 @@ def train_single_model(
                             reconstruction, mu, logvar = model(model_input)
                             time_loss = F.mse_loss(reconstruction.float(), clean_target.float(), reduction="mean")
                             kl_loss = compute_vae_kl(mu.float(), logvar.float())
+                            mem_loss = torch.zeros((), device=device)
+                        elif run_config.model_kind == "memae":
+                            reconstruction, attention = model(model_input)
+                            time_loss = F.mse_loss(reconstruction.float(), clean_target.float(), reduction="mean")
+                            kl_loss = torch.zeros((), device=device)
+                            mem_loss = memory_entropy_loss(attention.float())
                         else:
                             reconstruction = model(model_input)
                             time_loss = F.mse_loss(reconstruction.float(), clean_target.float(), reduction="mean")
                             kl_loss = torch.zeros((), device=device)
+                            mem_loss = torch.zeros((), device=device)
                         freq_loss = (
                             compute_frequency_loss(reconstruction, clean_target)
                             if freq_loss_weight > 0
                             else torch.zeros((), device=device)
                         )
-                        total_loss = time_loss + (freq_loss_weight * freq_loss) + (beta * kl_loss)
+                        total_loss = (
+                            time_loss
+                            + (freq_loss_weight * freq_loss)
+                            + (beta * kl_loss)
+                            + (memae_entropy_weight * mem_loss)
+                        )
                     scaler.scale(total_loss).backward()
                     scaler.step(optimizer)
                     scaler.update()
@@ -1177,6 +1237,7 @@ def train_single_model(
                     epoch_time += float(time_loss.item()) * batch_size
                     epoch_freq += float(freq_loss.item()) * batch_size
                     epoch_kl += float(kl_loss.item()) * batch_size
+                    epoch_mem += float(mem_loss.item()) * batch_size
                     sample_count += batch_size
                     if interrupts.requested:
                         raise RunInterrupted(f"{interrupts.signal_name} received during epoch {epoch}.")
@@ -1188,6 +1249,7 @@ def train_single_model(
                     "time_loss": epoch_time / divisor,
                     "freq_loss": epoch_freq / divisor,
                     "kl_loss": epoch_kl / divisor,
+                    "mem_loss": epoch_mem / divisor,
                 }
                 val_summary = evaluate_epoch(
                     model=model,
@@ -1196,16 +1258,19 @@ def train_single_model(
                     freq_loss_weight=freq_loss_weight,
                     beta=beta,
                     model_kind=run_config.model_kind,
+                    memae_entropy_weight=memae_entropy_weight,
                 )
                 history["epoch"].append(epoch)
                 history["train_total_loss"].append(train_summary["total_loss"])
                 history["train_time_loss"].append(train_summary["time_loss"])
                 history["train_freq_loss"].append(train_summary["freq_loss"])
                 history["train_kl_loss"].append(train_summary["kl_loss"])
+                history["train_mem_loss"].append(train_summary["mem_loss"])
                 history["val_total_loss"].append(val_summary["total_loss"])
                 history["val_time_loss"].append(val_summary["time_loss"])
                 history["val_freq_loss"].append(val_summary["freq_loss"])
                 history["val_kl_loss"].append(val_summary["kl_loss"])
+                history["val_mem_loss"].append(val_summary["mem_loss"])
                 history["beta"].append(beta)
                 history["lr"].append(epoch_lr)
                 epoch_message = (
@@ -1349,6 +1414,8 @@ def compute_reconstruction_scores(
             batch = batch.to(device, non_blocking=device.type == "cuda")
             if model_kind == "vae":
                 reconstruction, _, _ = model(batch)
+            elif model_kind == "memae":
+                reconstruction, _ = model(batch)
             else:
                 reconstruction = model(batch)
             per_window_mse = torch.mean((reconstruction.float() - batch.float()) ** 2, dim=(1, 2))
@@ -1396,6 +1463,8 @@ def summarize_model_result(
             "final_val_freq_loss": float(history["val_freq_loss"][-1]),
             "final_train_kl_loss": float(history["train_kl_loss"][-1]),
             "final_val_kl_loss": float(history["val_kl_loss"][-1]),
+            "final_train_mem_loss": float(history["train_mem_loss"][-1]),
+            "final_val_mem_loss": float(history["val_mem_loss"][-1]),
             "history": history,
             "freq_loss_weight": float(freq_loss_weight),
             "parameter_count": int(parameter_count(model)),
@@ -1632,6 +1701,8 @@ def build_report(
                 f"- Final val freq loss: `{training['final_val_freq_loss']:.6f}`",
                 f"- Final train KL loss: `{training['final_train_kl_loss']:.6f}`",
                 f"- Final val KL loss: `{training['final_val_kl_loss']:.6f}`",
+                f"- Final train memory-entropy loss: `{training['final_train_mem_loss']:.6f}`",
+                f"- Final val memory-entropy loss: `{training['final_val_mem_loss']:.6f}`",
                 f"- Parameter count: `{training['parameter_count']}`",
                 f"- Model size on disk: `{training['checkpoint_size_mb']:.3f}` MB",
                 f"- Training time: `{training['elapsed_seconds']:.2f}` seconds",
@@ -1730,6 +1801,9 @@ def evaluate_and_write_run_outputs(
     freq_loss_weight: float,
     vae_beta_max: float,
     vae_kl_warmup_epochs: int,
+    memae_memory_size: int,
+    memae_shrink_threshold: float,
+    memae_entropy_weight: float,
     best_candidate_extra_seeds: int,
     threshold_rule: str,
     resume_used: bool,
@@ -1806,6 +1880,9 @@ def evaluate_and_write_run_outputs(
         "freq_loss_weight": float(freq_loss_weight),
         "vae_beta_max": float(vae_beta_max),
         "vae_kl_warmup_epochs": int(vae_kl_warmup_epochs),
+        "memae_memory_size": int(memae_memory_size),
+        "memae_shrink_threshold": float(memae_shrink_threshold),
+        "memae_entropy_weight": float(memae_entropy_weight),
         "label_provenance": label_map["summary"],
         "saved_score_arrays": {
             "val_healthy_scores": run_paths.val_healthy_scores_npy.as_posix(),
@@ -1906,7 +1983,17 @@ def main() -> int:
     )
     sample_batch = next(iter(loaders["train"]))
     baseline_reference = build_baseline_reference()
-    all_models = build_models(expected_width, args.dropout)
+    memae_shrink_threshold = (
+        default_shrink_threshold(args.memae_memory_size)
+        if args.memae_shrink_threshold is None
+        else float(args.memae_shrink_threshold)
+    )
+    all_models = build_models(
+        expected_width,
+        args.dropout,
+        memae_memory_size=args.memae_memory_size,
+        memae_shrink_threshold=memae_shrink_threshold,
+    )
     selected_models = select_models(all_models, args.model)
     if not selected_models:
         raise RuntimeError(f"No model matched --model {args.model}.")
@@ -1925,6 +2012,9 @@ def main() -> int:
         "freq_loss_weight": float(args.freq_loss_weight),
         "vae_beta_max": float(args.vae_beta_max),
         "vae_kl_warmup_epochs": int(args.vae_kl_warmup_epochs),
+        "memae_memory_size": int(args.memae_memory_size),
+        "memae_shrink_threshold": float(memae_shrink_threshold),
+        "memae_entropy_weight": float(args.memae_entropy_weight),
         "save_every_epochs": int(args.save_every_epochs),
         "batch_size": int(batch_size),
         "threshold_rule": args.threshold_rule,
@@ -1949,6 +2039,7 @@ def main() -> int:
             freq_loss_weight=args.freq_loss_weight,
             vae_beta_max=args.vae_beta_max,
             vae_warmup_epochs=args.vae_kl_warmup_epochs,
+            memae_entropy_weight=args.memae_entropy_weight,
             run_paths=run_paths,
             seed=args.seed,
             save_every_epochs=args.save_every_epochs,
@@ -1980,6 +2071,9 @@ def main() -> int:
                 freq_loss_weight=args.freq_loss_weight,
                 vae_beta_max=args.vae_beta_max,
                 vae_kl_warmup_epochs=args.vae_kl_warmup_epochs,
+                memae_memory_size=args.memae_memory_size,
+                memae_shrink_threshold=memae_shrink_threshold,
+                memae_entropy_weight=args.memae_entropy_weight,
                 best_candidate_extra_seeds=args.best_candidate_extra_seeds,
                 threshold_rule=args.threshold_rule,
                 resume_used=args.resume,
