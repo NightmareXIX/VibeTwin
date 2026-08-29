@@ -61,9 +61,13 @@ ARTIFACTS_ROOT = PROJECT_ROOT / "artifacts"
 BASELINE_AE_METRICS_PATH = ARTIFACTS_ROOT / "metrics" / "paderborn_ae_metrics.json"
 BASELINE_IFOREST_METRICS_PATH = ARTIFACTS_ROOT / "metrics" / "paderborn_iforest_metrics.json"
 
-nn = torch.nn
-F = torch.nn.functional
+nn = torch.nn if torch is not None else None
+F = torch.nn.functional if torch is not None else None
+ModuleBase = nn.Module if nn is not None else object
 MODEL_CHOICES = ("resdilated_ae", "conv_vae", "denoising_resdilated_ae")
+MEMAE_MEMORY_SIZE = 500
+MEMAE_ENTROPY_WEIGHT = 2e-4
+MEMAE_EPSILON = 1e-12
 
 
 def choose_group_count(channels: int, maximum: int = 8) -> int:
@@ -133,7 +137,7 @@ class InterruptTracker:
             signal.signal(signal_value, previous_handler)
 
 
-class ResidualDilatedBlock(nn.Module):
+class ResidualDilatedBlock(ModuleBase):
     def __init__(
         self,
         in_channels: int,
@@ -179,7 +183,7 @@ class ResidualDilatedBlock(nn.Module):
         return self.act(outputs)
 
 
-class DownsampleBlock(nn.Module):
+class DownsampleBlock(ModuleBase):
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
         self.block = nn.Sequential(
@@ -192,7 +196,7 @@ class DownsampleBlock(nn.Module):
         return self.block(inputs)
 
 
-class UpsampleBlock(nn.Module):
+class UpsampleBlock(ModuleBase):
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
         self.block = nn.Sequential(
@@ -205,7 +209,7 @@ class UpsampleBlock(nn.Module):
         return self.block(inputs)
 
 
-class ResDilatedAE(nn.Module):
+class ResDilatedAE(ModuleBase):
     def __init__(self, base_channels: int = 32, dropout: float = 0.05) -> None:
         super().__init__()
         c1 = base_channels
@@ -251,7 +255,7 @@ class ResDilatedAE(nn.Module):
         return self.head(y1)
 
 
-class ConvVAE(nn.Module):
+class ConvVAE(ModuleBase):
     def __init__(
         self,
         *,
@@ -329,6 +333,164 @@ class ConvVAE(nn.Module):
         latent = self.reparameterize(mu, logvar) if self.training else mu
         reconstruction = self.decode(latent)
         return reconstruction, mu, logvar
+
+
+class MemoryModule(ModuleBase):
+    """Memory-addressing module of MemAE (Gong et al., ICCV 2019).
+
+    Each latent position is used as a query against a learned memory bank ``M``
+    of ``memory_size`` prototypes. The query is replaced by a sparse convex
+    combination of those prototypes, so the decoder can only reconstruct from
+    memorized normal patterns.
+    """
+
+    def __init__(
+        self,
+        *,
+        memory_size: int = MEMAE_MEMORY_SIZE,
+        feature_dim: int,
+        shrink_threshold: float | None = None,
+        epsilon: float = MEMAE_EPSILON,
+    ) -> None:
+        super().__init__()
+        if memory_size <= 0:
+            raise ValueError("memory_size must be positive.")
+        if feature_dim <= 0:
+            raise ValueError("feature_dim must be positive.")
+        self.memory_size = int(memory_size)
+        self.feature_dim = int(feature_dim)
+        self.shrink_threshold = (
+            default_shrink_threshold(memory_size) if shrink_threshold is None else float(shrink_threshold)
+        )
+        if self.shrink_threshold < 0.0:
+            raise ValueError("shrink_threshold must be non-negative.")
+        self.epsilon = float(epsilon)
+        self.memory = nn.Parameter(torch.empty(self.memory_size, self.feature_dim))
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        bound = 1.0 / math.sqrt(self.feature_dim)
+        with torch.no_grad():
+            self.memory.uniform_(-bound, bound)
+
+    def hard_shrink(self, attention: torch.Tensor) -> torch.Tensor:
+        """Differentiable hard shrinkage: max(w - lambda, 0) * w / (|w - lambda| + eps).
+
+        The ``if w > lambda`` form has zero gradient almost everywhere and would
+        leave the memory untrained, so the ReLU form is used deliberately.
+        """
+        offset = attention - self.shrink_threshold
+        return (F.relu(offset) * attention) / (offset.abs() + self.epsilon)
+
+    def shrink_and_renormalize(self, attention: torch.Tensor) -> torch.Tensor:
+        """Apply hard shrinkage, then renormalize to unit L1 mass (Eq. 7, in that order).
+
+        Equation 7 divides by ``||shrunk||_1``, which is undefined when shrinkage
+        zeroes an entire addressing row. That happens routinely at initialization:
+        cosine similarities live in [-1, 1], so every softmax weight starts within
+        a narrow band around 1/N and none survives lambda = 2/N. Left undefined the
+        readout is zero, the memory receives no gradient, and the bank never trains.
+        Such rows therefore fall back to the unshrunk weights, which is the minimal
+        well-defined completion; shrinkage takes effect as addressing sharpens.
+        """
+        shrunk = self.hard_shrink(attention)
+        mass = shrunk.sum(dim=-1, keepdim=True)
+        collapsed = mass <= self.epsilon
+        shrunk = torch.where(collapsed, attention, shrunk)
+        mass = torch.where(collapsed, attention.sum(dim=-1, keepdim=True), mass)
+        return shrunk / mass.clamp_min(self.epsilon)
+
+    def forward(self, latent: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        # latent: (B, C, L_z) -> queries of shape (B, L_z, C), one per latent position.
+        queries = latent.transpose(1, 2)
+        normalized_queries = F.normalize(queries, p=2.0, dim=-1, eps=self.epsilon)
+        normalized_memory = F.normalize(self.memory, p=2.0, dim=-1, eps=self.epsilon)
+        similarity = torch.matmul(normalized_queries, normalized_memory.t())
+        attention = self.shrink_and_renormalize(F.softmax(similarity, dim=-1))
+        readout = torch.matmul(attention, self.memory)
+        return readout.transpose(1, 2), attention
+
+
+def default_shrink_threshold(memory_size: int) -> float:
+    """Midpoint of the paper's recommended range lambda in [1/N, 3/N]."""
+    return 2.0 / float(memory_size)
+
+
+def memory_entropy_loss(attention: torch.Tensor, epsilon: float = MEMAE_EPSILON) -> torch.Tensor:
+    """Entropy of the shrunk, renormalized addressing weights, averaged over positions and batch."""
+    entropy = -(attention * torch.log(attention + epsilon)).sum(dim=-1)
+    return entropy.mean()
+
+
+class MemAE(ModuleBase):
+    """Memory-augmented autoencoder comparator.
+
+    Deliberately a plain strided conv encoder-decoder with no skip connections:
+    every reconstruction path runs through the memory bottleneck. Channel widths
+    are chosen to match the ResDilatedAE parameter budget so that any difference
+    is attributable to the memory mechanism rather than to capacity.
+    """
+
+    def __init__(
+        self,
+        *,
+        base_channels: int = 24,
+        memory_size: int = MEMAE_MEMORY_SIZE,
+        shrink_threshold: float | None = None,
+        dropout: float = 0.0,
+    ) -> None:
+        super().__init__()
+        c1 = base_channels
+        c2 = base_channels * 2
+        c3 = base_channels * 3
+        c4 = base_channels * 4
+        self.latent_channels = c4
+
+        self.encoder = nn.Sequential(
+            *encoder_stage(1, c1, dropout=dropout),
+            *encoder_stage(c1, c2, dropout=dropout),
+            *encoder_stage(c2, c3, dropout=dropout),
+            *encoder_stage(c3, c4, dropout=dropout),
+        )
+        self.memory = MemoryModule(
+            memory_size=memory_size,
+            feature_dim=c4,
+            shrink_threshold=shrink_threshold,
+        )
+        self.decoder = nn.Sequential(
+            *decoder_stage(c4, c3, dropout=dropout),
+            *decoder_stage(c3, c2, dropout=dropout),
+            *decoder_stage(c2, c1, dropout=dropout),
+            *decoder_stage(c1, c1, dropout=dropout),
+            nn.Conv1d(c1, 1, kernel_size=7, padding=3),
+        )
+
+    def forward(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        latent = self.encoder(inputs)
+        readout, attention = self.memory(latent)
+        return self.decoder(readout), attention
+
+
+def encoder_stage(in_channels: int, out_channels: int, *, dropout: float = 0.0) -> list[nn.Module]:
+    layers: list[nn.Module] = [
+        nn.Conv1d(in_channels, out_channels, kernel_size=7, stride=2, padding=3),
+        nn.GroupNorm(choose_group_count(out_channels), out_channels),
+        nn.SiLU(),
+    ]
+    if dropout > 0:
+        layers.append(nn.Dropout(dropout))
+    return layers
+
+
+def decoder_stage(in_channels: int, out_channels: int, *, dropout: float = 0.0) -> list[nn.Module]:
+    layers: list[nn.Module] = [
+        nn.ConvTranspose1d(in_channels, out_channels, kernel_size=8, stride=2, padding=3),
+        nn.GroupNorm(choose_group_count(out_channels), out_channels),
+        nn.SiLU(),
+    ]
+    if dropout > 0:
+        layers.append(nn.Dropout(dropout))
+    return layers
 
 
 def parse_args() -> argparse.Namespace:
