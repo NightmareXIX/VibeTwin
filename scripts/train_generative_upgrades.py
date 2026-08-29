@@ -68,6 +68,8 @@ MODEL_CHOICES = ("resdilated_ae", "conv_vae", "denoising_resdilated_ae", "memae"
 MEMAE_MEMORY_SIZE = 500
 MEMAE_ENTROPY_WEIGHT = 2e-4
 MEMAE_EPSILON = 1e-12
+MEMAE_ADDRESSING_CHOICES = ("dot", "cosine")
+MEMAE_ADDRESSING = "dot"
 
 
 def choose_group_count(channels: int, maximum: int = 8) -> int:
@@ -342,6 +344,18 @@ class MemoryModule(ModuleBase):
     of ``memory_size`` prototypes. The query is replaced by a sparse convex
     combination of those prototypes, so the decoder can only reconstruct from
     memorized normal patterns.
+
+    ``addressing`` selects the similarity used for the softmax logits. ``"dot"``
+    is the unnormalized inner product of the reference release
+    (``donggong1/memae-anomaly-detection``) and is the default; ``"cosine"`` is
+    the similarity written in the paper. Cosine bounds every logit to [-1, 1],
+    which caps the spread of the softmax at a factor of e^2 and leaves every
+    weight too close to 1/N for lambda in [1/N, 3/N] to prune anything: measured
+    over ten epochs on Paderborn healthy windows, addressing entropy stays at
+    log(500) = 6.21 and all 500 slots stay active, so the memory degenerates into
+    a low-rank linear layer. Under ``"dot"`` the same run reaches entropy 1.91
+    with 12 active slots per position. See
+    ``implementation_docs/memae_phase3_notes.md``.
     """
 
     def __init__(
@@ -350,6 +364,7 @@ class MemoryModule(ModuleBase):
         memory_size: int = MEMAE_MEMORY_SIZE,
         feature_dim: int,
         shrink_threshold: float | None = None,
+        addressing: str = MEMAE_ADDRESSING,
         epsilon: float = MEMAE_EPSILON,
     ) -> None:
         super().__init__()
@@ -364,6 +379,9 @@ class MemoryModule(ModuleBase):
         )
         if self.shrink_threshold < 0.0:
             raise ValueError("shrink_threshold must be non-negative.")
+        if addressing not in MEMAE_ADDRESSING_CHOICES:
+            raise ValueError(f"addressing must be one of {MEMAE_ADDRESSING_CHOICES}, got {addressing!r}.")
+        self.addressing = addressing
         self.epsilon = float(epsilon)
         self.memory = nn.Parameter(torch.empty(self.memory_size, self.feature_dim))
         self.reset_parameters()
@@ -386,12 +404,13 @@ class MemoryModule(ModuleBase):
         """Apply hard shrinkage, then renormalize to unit L1 mass (Eq. 7, in that order).
 
         Equation 7 divides by ``||shrunk||_1``, which is undefined when shrinkage
-        zeroes an entire addressing row. That happens routinely at initialization:
-        cosine similarities live in [-1, 1], so every softmax weight starts within
-        a narrow band around 1/N and none survives lambda = 2/N. Left undefined the
-        readout is zero, the memory receives no gradient, and the bank never trains.
-        Such rows therefore fall back to the unshrunk weights, which is the minimal
-        well-defined completion; shrinkage takes effect as addressing sharpens.
+        zeroes an entire addressing row. That happens whenever addressing is close
+        to uniform, which is where training starts and where cosine addressing
+        stays: every softmax weight then sits near 1/N and none survives lambda.
+        Left undefined the readout is zero, the memory receives no gradient, and
+        the bank never trains. Such rows therefore fall back to the unshrunk
+        weights, which is the minimal well-defined completion; shrinkage takes
+        effect as addressing sharpens.
         """
         shrunk = self.hard_shrink(attention)
         mass = shrunk.sum(dim=-1, keepdim=True)
@@ -403,17 +422,26 @@ class MemoryModule(ModuleBase):
     def forward(self, latent: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         # latent: (B, C, L_z) -> queries of shape (B, L_z, C), one per latent position.
         queries = latent.transpose(1, 2)
-        normalized_queries = F.normalize(queries, p=2.0, dim=-1, eps=self.epsilon)
-        normalized_memory = F.normalize(self.memory, p=2.0, dim=-1, eps=self.epsilon)
-        similarity = torch.matmul(normalized_queries, normalized_memory.t())
+        if self.addressing == "cosine":
+            queries = F.normalize(queries, p=2.0, dim=-1, eps=self.epsilon)
+            memory = F.normalize(self.memory, p=2.0, dim=-1, eps=self.epsilon)
+        else:
+            memory = self.memory
+        similarity = torch.matmul(queries, memory.t())
         attention = self.shrink_and_renormalize(F.softmax(similarity, dim=-1))
         readout = torch.matmul(attention, self.memory)
         return readout.transpose(1, 2), attention
 
 
 def default_shrink_threshold(memory_size: int) -> float:
-    """Midpoint of the paper's recommended range lambda in [1/N, 3/N]."""
-    return 2.0 / float(memory_size)
+    """Low end of the paper's recommended range lambda in [1/N, 3/N].
+
+    The midpoint 2/N collapses the memory on this data: in a ten-epoch probe on
+    Paderborn healthy windows a single slot takes 65% of the addressing mass and
+    validation reconstruction stalls at 0.246, against 0.6% and 0.056 at 1/N.
+    3/N behaves the same as 2/N. See ``implementation_docs/memae_phase3_notes.md``.
+    """
+    return 1.0 / float(memory_size)
 
 
 def memory_entropy_loss(attention: torch.Tensor, epsilon: float = MEMAE_EPSILON) -> torch.Tensor:
@@ -437,6 +465,7 @@ class MemAE(ModuleBase):
         base_channels: int = 24,
         memory_size: int = MEMAE_MEMORY_SIZE,
         shrink_threshold: float | None = None,
+        addressing: str = MEMAE_ADDRESSING,
         dropout: float = 0.0,
     ) -> None:
         super().__init__()
@@ -456,6 +485,7 @@ class MemAE(ModuleBase):
             memory_size=memory_size,
             feature_dim=c4,
             shrink_threshold=shrink_threshold,
+            addressing=addressing,
         )
         self.decoder = nn.Sequential(
             *decoder_stage(c4, c3, dropout=dropout),
@@ -522,9 +552,15 @@ def parse_args() -> argparse.Namespace:
         "--memae-shrink-threshold",
         type=float,
         default=None,
-        help="Hard shrinkage lambda. Defaults to the paper's midpoint, 2 / memory_size.",
+        help="Hard shrinkage lambda. Defaults to 1 / memory_size, the low end of the paper's range.",
     )
     parser.add_argument("--memae-entropy-weight", type=float, default=MEMAE_ENTROPY_WEIGHT)
+    parser.add_argument(
+        "--memae-addressing",
+        choices=MEMAE_ADDRESSING_CHOICES,
+        default=MEMAE_ADDRESSING,
+        help="Memory addressing logits: unnormalized dot product (reference release) or cosine similarity (paper text).",
+    )
     parser.add_argument("--dropout", type=float, default=0.05)
     parser.add_argument("--train-subset", type=int, default=0)
     parser.add_argument("--val-subset", type=int, default=0)
@@ -637,6 +673,7 @@ def build_models(
     *,
     memae_memory_size: int = MEMAE_MEMORY_SIZE,
     memae_shrink_threshold: float | None = None,
+    memae_addressing: str = MEMAE_ADDRESSING,
 ) -> list[tuple[ModelRunConfig, nn.Module]]:
     return [
         (
@@ -678,6 +715,7 @@ def build_models(
                 base_channels=24,
                 memory_size=memae_memory_size,
                 shrink_threshold=memae_shrink_threshold,
+                addressing=memae_addressing,
                 dropout=dropout,
             ),
         ),
@@ -742,6 +780,8 @@ def build_manual_command(args: argparse.Namespace, model_name: str, *, resume: b
         command.extend(["--processed-root", args.processed_root.as_posix()])
     if args.metadata_root != METADATA_ROOT:
         command.extend(["--metadata-root", args.metadata_root.as_posix()])
+    if args.memae_addressing != MEMAE_ADDRESSING:
+        command.extend(["--memae-addressing", args.memae_addressing])
     if resume:
         command.append("--resume")
     return format_command(command)
@@ -1804,6 +1844,7 @@ def evaluate_and_write_run_outputs(
     memae_memory_size: int,
     memae_shrink_threshold: float,
     memae_entropy_weight: float,
+    memae_addressing: str,
     best_candidate_extra_seeds: int,
     threshold_rule: str,
     resume_used: bool,
@@ -1883,6 +1924,7 @@ def evaluate_and_write_run_outputs(
         "memae_memory_size": int(memae_memory_size),
         "memae_shrink_threshold": float(memae_shrink_threshold),
         "memae_entropy_weight": float(memae_entropy_weight),
+        "memae_addressing": memae_addressing,
         "label_provenance": label_map["summary"],
         "saved_score_arrays": {
             "val_healthy_scores": run_paths.val_healthy_scores_npy.as_posix(),
@@ -1993,6 +2035,7 @@ def main() -> int:
         args.dropout,
         memae_memory_size=args.memae_memory_size,
         memae_shrink_threshold=memae_shrink_threshold,
+        memae_addressing=args.memae_addressing,
     )
     selected_models = select_models(all_models, args.model)
     if not selected_models:
@@ -2015,6 +2058,7 @@ def main() -> int:
         "memae_memory_size": int(args.memae_memory_size),
         "memae_shrink_threshold": float(memae_shrink_threshold),
         "memae_entropy_weight": float(args.memae_entropy_weight),
+        "memae_addressing": args.memae_addressing,
         "save_every_epochs": int(args.save_every_epochs),
         "batch_size": int(batch_size),
         "threshold_rule": args.threshold_rule,
@@ -2074,6 +2118,7 @@ def main() -> int:
                 memae_memory_size=args.memae_memory_size,
                 memae_shrink_threshold=memae_shrink_threshold,
                 memae_entropy_weight=args.memae_entropy_weight,
+                memae_addressing=args.memae_addressing,
                 best_candidate_extra_seeds=args.best_candidate_extra_seeds,
                 threshold_rule=args.threshold_rule,
                 resume_used=args.resume,

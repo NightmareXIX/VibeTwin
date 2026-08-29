@@ -53,6 +53,20 @@ python scripts/train_generative_upgrades.py --model resdilated_ae --seed 123
 python scripts/eval_paderborn_resdilated_threshold_calibration.py --seeds 42 7 123
 ```
 
+## MemAE Comparator
+
+```powershell
+python scripts/verify_memae.py
+python scripts/train_generative_upgrades.py --model memae --seed 42
+python scripts/train_generative_upgrades.py --model memae --seed 7
+python scripts/train_generative_upgrades.py --model memae --seed 123
+```
+
+`verify_memae.py` checks the memory mechanism and its trained behaviour, writing
+`artifacts/metrics/memae_verification_metrics.json` and a matching report; it exits non-zero if
+any check fails. Add `--skip-behavioural` to run the mechanism checks alone, which need no
+processed windows.
+
 ## Paderborn Ablation
 
 ```powershell
