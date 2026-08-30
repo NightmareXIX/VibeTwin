@@ -20,6 +20,35 @@
 - `artifacts/paderborn_ablation/evaluation/evaluation_report.md`: generated locally and intentionally omitted under the generated-artifact policy.
 - `scripts/train_paderborn_ablation.py` and `scripts/eval_paderborn_ablation.py`: tracked scripts used to regenerate the ablation outputs.
 
+## MemAE Comparator Rows And FAR-Matched Recall Table
+
+- `artifacts/paderborn_unified_baselines/summary_by_model.csv`: three-seed (42/7/123)
+  `percentile_99_5` means and standard deviations for every Paderborn comparator, including the
+  MemAE row of the baseline comparison table.
+- `artifacts/generative_upgrades/memae/seed_{42,7,123}/metrics.json`: per-seed MemAE run metrics,
+  memory-live arm. Generated locally and intentionally omitted under the generated-artifact policy.
+- `artifacts/memae_control/generative_upgrades/memae/seed_{42,7,123}/metrics.json`: per-seed
+  metrics for the memory-disabled control (`lambda = 0`, `alpha = 0`). Generated locally and
+  intentionally omitted under the generated-artifact policy.
+- `artifacts/generative_upgrades/memae/analysis/memae_comparison_metrics.json` and
+  `memae_comparison_report.md`: FAR-matched recall at FAR targets 0.005/0.0069/0.01, the
+  memory-disabled control comparison, the `lambda` sweep, and the memory-occupancy diagnostics.
+  These back the FAR-matched recall table and the comparator-fairness paragraphs. Generated
+  locally and intentionally omitted under the generated-artifact policy.
+- `artifacts/generative_upgrades/memae/analysis/far_matched_recall.csv` and
+  `far_matched_recall_by_model.csv`: per-seed and per-model FAR-matched recall. Only the
+  `val_fitted` threshold basis backs reported numbers; the `test_oracle` basis is a labelled
+  diagnostic bound and must not appear in the manuscript.
+- `artifacts/generative_upgrades/memae/analysis/memae_deployment_metrics.json` and
+  `memae_deployment_report.md`: MemAE and ResDilatedAE parameter counts, checkpoint sizes, and
+  same-process CPU latency, backing the capacity-parity and inference-cost sentences.
+- `artifacts/metrics/memae_verification_metrics.json` and `memae_verification_report.md`: tracked
+  equation-by-equation verification of the MemAE mechanism against the reference release, cited in
+  the comparator-fairness paragraph.
+- `scripts/train_generative_upgrades.py`, `scripts/verify_memae.py`,
+  `scripts/eval_paderborn_baselines_unified.py`, and `scripts/compare_memae_resdilated.py`:
+  tracked scripts used to regenerate all of the above.
+
 ## Deployment Metrics
 
 - `scripts/eval_paderborn_deployment_metrics.py`: tracked deployment-metric script.
