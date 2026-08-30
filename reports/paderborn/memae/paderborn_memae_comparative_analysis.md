@@ -39,6 +39,23 @@ generalization and the complementarity claim cannot be tested against this compa
 
 ## Findings
 
+**MemAE is mid-field, not an outlier failure.** Three-seed AUROC across the whole comparison:
+Isolation Forest 0.913, ResDilatedAE-T 0.858, MemAE 0.697, Deep SVDD 0.676, ConvVAE 0.530,
+CompactAE 0.522, OC-SVM 0.345. MemAE places third of seven and first among the deep autoencoders,
+ahead of CompactAE by 0.175 and ConvVAE by 0.167 AUROC, with roughly double CompactAE's recall.
+Every generic reconstruction autoencoder in the comparison falls in a 0.52-0.70 band; the result
+to explain is that ResDilatedAE-T escapes that band, not that MemAE sits inside it. The manuscript
+must not describe the MemAE row as a failure - the table itself would contradict it.
+
+**The comparator trains without the frequency-domain loss, and this needs disclosing.**
+`train_generative_upgrades.py` forces `freq_loss_weight = 0.0` for `model_kind == "memae"`, while
+ResDilatedAE-T and ConvVAE train at 0.1. The spectral term is VibeTwin's contribution rather than
+part of MemAE as published, so adding it would report a hybrid neither paper proposes - but a
+reviewer will still ask whether the comparator was handicapped. The empirical answer is in the
+same table: ConvVAE trains *with* the frequency loss and reaches 0.530 AUROC, well below MemAE's
+0.697 without it, so the term is not on its own what separates the models. State this proactively
+in the Experiment section.
+
 **FAR-matched recall does not reverse the ordering.** Sweeping every model's threshold to a common
 false-alarm target leaves the ranking unchanged at FAR 0.005 / 0.0069 / 0.01. ResDilatedAE-T
 recalls 0.610 → 0.622 across those targets, Isolation Forest 0.404 → 0.464, MemAE 0.223 → 0.243.
@@ -79,6 +96,8 @@ the comparator was not starved of capacity, but not as a consolation for the acc
 ## What This Selects For The Manuscript
 
 The negative-result branch, together with the workflow-generality and deployment-cost framings.
+Confirmed with the user on 2026-08-30; the plan's §2 status table records the settled position and
+the stop-and-review gate before the paper-writing phases is cleared.
 
 - Report the loss plainly and keep the tables as they are.
 - State the claim narrowly, every time: *MemAE, as specified, under matched calibration and
@@ -91,4 +110,13 @@ The negative-result branch, together with the workflow-generality and deployment
 - The FAR-matched table is the protocol's standard deployment view computed for every model. It
   must be introduced that way, not as MemAE's rescue after the headline row goes against it.
 - The threshold-transfer generalization and the complementarity analysis are out of reach on this
-  comparator, and the manuscript should say so rather than extract them from noise.
+  comparator, and the manuscript should say so rather than extract them from noise. The existing
+  single-model threshold-transfer limitation stays as written; the fusion item drops out of future
+  work, since no analysis in the paper motivates it.
+- The mechanism-disabled control is exculpatory, not attributive. It rules out a defective encoder
+  and licenses nothing about where the loss comes from.
+- A plausible explanation, and it must be labelled as one: the memory addresses a failure mode
+  this benchmark does not exhibit. Addressing entropy of 4.81-4.91 nats over 500 slots means
+  roughly 120-135 slots are blended per latent position, so the intended bottleneck does not bind,
+  and the λ sweep showed that tightening it degrades reconstruction and AUROC together rather than
+  improving separation.
