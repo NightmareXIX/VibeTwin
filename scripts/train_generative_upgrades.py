@@ -61,9 +61,15 @@ ARTIFACTS_ROOT = PROJECT_ROOT / "artifacts"
 BASELINE_AE_METRICS_PATH = ARTIFACTS_ROOT / "metrics" / "paderborn_ae_metrics.json"
 BASELINE_IFOREST_METRICS_PATH = ARTIFACTS_ROOT / "metrics" / "paderborn_iforest_metrics.json"
 
-nn = torch.nn
-F = torch.nn.functional
-MODEL_CHOICES = ("resdilated_ae", "conv_vae", "denoising_resdilated_ae")
+nn = torch.nn if torch is not None else None
+F = torch.nn.functional if torch is not None else None
+ModuleBase = nn.Module if nn is not None else object
+MODEL_CHOICES = ("resdilated_ae", "conv_vae", "denoising_resdilated_ae", "memae")
+MEMAE_MEMORY_SIZE = 500
+MEMAE_ENTROPY_WEIGHT = 2e-4
+MEMAE_EPSILON = 1e-12
+MEMAE_ADDRESSING_CHOICES = ("dot", "cosine")
+MEMAE_ADDRESSING = "dot"
 
 
 def choose_group_count(channels: int, maximum: int = 8) -> int:
@@ -133,7 +139,7 @@ class InterruptTracker:
             signal.signal(signal_value, previous_handler)
 
 
-class ResidualDilatedBlock(nn.Module):
+class ResidualDilatedBlock(ModuleBase):
     def __init__(
         self,
         in_channels: int,
@@ -179,7 +185,7 @@ class ResidualDilatedBlock(nn.Module):
         return self.act(outputs)
 
 
-class DownsampleBlock(nn.Module):
+class DownsampleBlock(ModuleBase):
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
         self.block = nn.Sequential(
@@ -192,7 +198,7 @@ class DownsampleBlock(nn.Module):
         return self.block(inputs)
 
 
-class UpsampleBlock(nn.Module):
+class UpsampleBlock(ModuleBase):
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
         self.block = nn.Sequential(
@@ -205,7 +211,7 @@ class UpsampleBlock(nn.Module):
         return self.block(inputs)
 
 
-class ResDilatedAE(nn.Module):
+class ResDilatedAE(ModuleBase):
     def __init__(self, base_channels: int = 32, dropout: float = 0.05) -> None:
         super().__init__()
         c1 = base_channels
@@ -251,7 +257,7 @@ class ResDilatedAE(nn.Module):
         return self.head(y1)
 
 
-class ConvVAE(nn.Module):
+class ConvVAE(ModuleBase):
     def __init__(
         self,
         *,
@@ -331,6 +337,192 @@ class ConvVAE(nn.Module):
         return reconstruction, mu, logvar
 
 
+class MemoryModule(ModuleBase):
+    """Memory-addressing module of MemAE (Gong et al., ICCV 2019).
+
+    Each latent position is used as a query against a learned memory bank ``M``
+    of ``memory_size`` prototypes. The query is replaced by a sparse convex
+    combination of those prototypes, so the decoder can only reconstruct from
+    memorized normal patterns.
+
+    ``addressing`` selects the similarity used for the softmax logits. ``"dot"``
+    is the unnormalized inner product of the reference release
+    (``donggong1/memae-anomaly-detection``) and is the default; ``"cosine"`` is
+    the similarity written in the paper. Cosine bounds every logit to [-1, 1],
+    which caps the spread of the softmax at a factor of e^2 and leaves every
+    weight too close to 1/N for lambda in [1/N, 3/N] to prune anything: measured
+    over ten epochs on Paderborn healthy windows, addressing entropy stays at
+    log(500) = 6.21 and all 500 slots stay active, so the memory degenerates into
+    a low-rank linear layer. Under ``"dot"`` the same run reaches entropy 1.91
+    with 12 active slots per position. See
+    ``implementation_docs/memae_phase3_notes.md``.
+    """
+
+    def __init__(
+        self,
+        *,
+        memory_size: int = MEMAE_MEMORY_SIZE,
+        feature_dim: int,
+        shrink_threshold: float | None = None,
+        addressing: str = MEMAE_ADDRESSING,
+        epsilon: float = MEMAE_EPSILON,
+    ) -> None:
+        super().__init__()
+        if memory_size <= 0:
+            raise ValueError("memory_size must be positive.")
+        if feature_dim <= 0:
+            raise ValueError("feature_dim must be positive.")
+        self.memory_size = int(memory_size)
+        self.feature_dim = int(feature_dim)
+        self.shrink_threshold = (
+            default_shrink_threshold(memory_size) if shrink_threshold is None else float(shrink_threshold)
+        )
+        if self.shrink_threshold < 0.0:
+            raise ValueError("shrink_threshold must be non-negative.")
+        if addressing not in MEMAE_ADDRESSING_CHOICES:
+            raise ValueError(f"addressing must be one of {MEMAE_ADDRESSING_CHOICES}, got {addressing!r}.")
+        self.addressing = addressing
+        self.epsilon = float(epsilon)
+        self.memory = nn.Parameter(torch.empty(self.memory_size, self.feature_dim))
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        bound = 1.0 / math.sqrt(self.feature_dim)
+        with torch.no_grad():
+            self.memory.uniform_(-bound, bound)
+
+    def hard_shrink(self, attention: torch.Tensor) -> torch.Tensor:
+        """Differentiable hard shrinkage: max(w - lambda, 0) * w / (|w - lambda| + eps).
+
+        The ``if w > lambda`` form has zero gradient almost everywhere and would
+        leave the memory untrained, so the ReLU form is used deliberately.
+        """
+        offset = attention - self.shrink_threshold
+        return (F.relu(offset) * attention) / (offset.abs() + self.epsilon)
+
+    def shrink_and_renormalize(self, attention: torch.Tensor) -> torch.Tensor:
+        """Apply hard shrinkage, then renormalize to unit L1 mass (Eq. 7, in that order).
+
+        Equation 7 divides by ``||shrunk||_1``, which is undefined when shrinkage
+        zeroes an entire addressing row. That happens whenever addressing is close
+        to uniform, which is where training starts and where cosine addressing
+        stays: every softmax weight then sits near 1/N and none survives lambda.
+        Left undefined the readout is zero, the memory receives no gradient, and
+        the bank never trains. Such rows therefore fall back to the unshrunk
+        weights, which is the minimal well-defined completion; shrinkage takes
+        effect as addressing sharpens.
+        """
+        shrunk = self.hard_shrink(attention)
+        mass = shrunk.sum(dim=-1, keepdim=True)
+        collapsed = mass <= self.epsilon
+        shrunk = torch.where(collapsed, attention, shrunk)
+        mass = torch.where(collapsed, attention.sum(dim=-1, keepdim=True), mass)
+        return shrunk / mass.clamp_min(self.epsilon)
+
+    def forward(self, latent: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        # latent: (B, C, L_z) -> queries of shape (B, L_z, C), one per latent position.
+        queries = latent.transpose(1, 2)
+        if self.addressing == "cosine":
+            queries = F.normalize(queries, p=2.0, dim=-1, eps=self.epsilon)
+            memory = F.normalize(self.memory, p=2.0, dim=-1, eps=self.epsilon)
+        else:
+            memory = self.memory
+        similarity = torch.matmul(queries, memory.t())
+        attention = self.shrink_and_renormalize(F.softmax(similarity, dim=-1))
+        readout = torch.matmul(attention, self.memory)
+        return readout.transpose(1, 2), attention
+
+
+def default_shrink_threshold(memory_size: int) -> float:
+    """Low end of the paper's recommended range lambda in [1/N, 3/N].
+
+    The midpoint 2/N collapses the memory on this data: in a ten-epoch probe on
+    Paderborn healthy windows a single slot takes 65% of the addressing mass and
+    validation reconstruction stalls at 0.246, against 0.6% and 0.056 at 1/N.
+    3/N behaves the same as 2/N. See ``implementation_docs/memae_phase3_notes.md``.
+    """
+    return 1.0 / float(memory_size)
+
+
+def memory_entropy_loss(attention: torch.Tensor, epsilon: float = MEMAE_EPSILON) -> torch.Tensor:
+    """Entropy of the shrunk, renormalized addressing weights, averaged over positions and batch."""
+    entropy = -(attention * torch.log(attention + epsilon)).sum(dim=-1)
+    return entropy.mean()
+
+
+class MemAE(ModuleBase):
+    """Memory-augmented autoencoder comparator.
+
+    Deliberately a plain strided conv encoder-decoder with no skip connections:
+    every reconstruction path runs through the memory bottleneck. Channel widths
+    are chosen to match the ResDilatedAE parameter budget so that any difference
+    is attributable to the memory mechanism rather than to capacity.
+    """
+
+    def __init__(
+        self,
+        *,
+        base_channels: int = 24,
+        memory_size: int = MEMAE_MEMORY_SIZE,
+        shrink_threshold: float | None = None,
+        addressing: str = MEMAE_ADDRESSING,
+        dropout: float = 0.0,
+    ) -> None:
+        super().__init__()
+        c1 = base_channels
+        c2 = base_channels * 2
+        c3 = base_channels * 3
+        c4 = base_channels * 4
+        self.latent_channels = c4
+
+        self.encoder = nn.Sequential(
+            *encoder_stage(1, c1, dropout=dropout),
+            *encoder_stage(c1, c2, dropout=dropout),
+            *encoder_stage(c2, c3, dropout=dropout),
+            *encoder_stage(c3, c4, dropout=dropout),
+        )
+        self.memory = MemoryModule(
+            memory_size=memory_size,
+            feature_dim=c4,
+            shrink_threshold=shrink_threshold,
+            addressing=addressing,
+        )
+        self.decoder = nn.Sequential(
+            *decoder_stage(c4, c3, dropout=dropout),
+            *decoder_stage(c3, c2, dropout=dropout),
+            *decoder_stage(c2, c1, dropout=dropout),
+            *decoder_stage(c1, c1, dropout=dropout),
+            nn.Conv1d(c1, 1, kernel_size=7, padding=3),
+        )
+
+    def forward(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        latent = self.encoder(inputs)
+        readout, attention = self.memory(latent)
+        return self.decoder(readout), attention
+
+
+def encoder_stage(in_channels: int, out_channels: int, *, dropout: float = 0.0) -> list[nn.Module]:
+    layers: list[nn.Module] = [
+        nn.Conv1d(in_channels, out_channels, kernel_size=7, stride=2, padding=3),
+        nn.GroupNorm(choose_group_count(out_channels), out_channels),
+        nn.SiLU(),
+    ]
+    if dropout > 0:
+        layers.append(nn.Dropout(dropout))
+    return layers
+
+
+def decoder_stage(in_channels: int, out_channels: int, *, dropout: float = 0.0) -> list[nn.Module]:
+    layers: list[nn.Module] = [
+        nn.ConvTranspose1d(in_channels, out_channels, kernel_size=8, stride=2, padding=3),
+        nn.GroupNorm(choose_group_count(out_channels), out_channels),
+        nn.SiLU(),
+    ]
+    if dropout > 0:
+        layers.append(nn.Dropout(dropout))
+    return layers
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Train stronger generative anomaly-detection upgrades on processed Paderborn windows.",
@@ -355,6 +547,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--freq-loss-weight", type=float, default=0.10)
     parser.add_argument("--vae-beta-max", type=float, default=1e-3)
     parser.add_argument("--vae-kl-warmup-epochs", type=int, default=10)
+    parser.add_argument("--memae-memory-size", type=int, default=MEMAE_MEMORY_SIZE)
+    parser.add_argument(
+        "--memae-shrink-threshold",
+        type=float,
+        default=None,
+        help="Hard shrinkage lambda. Defaults to 1 / memory_size, the low end of the paper's range.",
+    )
+    parser.add_argument("--memae-entropy-weight", type=float, default=MEMAE_ENTROPY_WEIGHT)
+    parser.add_argument(
+        "--memae-addressing",
+        choices=MEMAE_ADDRESSING_CHOICES,
+        default=MEMAE_ADDRESSING,
+        help="Memory addressing logits: unnormalized dot product (reference release) or cosine similarity (paper text).",
+    )
     parser.add_argument("--dropout", type=float, default=0.05)
     parser.add_argument("--train-subset", type=int, default=0)
     parser.add_argument("--val-subset", type=int, default=0)
@@ -461,7 +667,14 @@ def apply_denoising_corruption(
     return outputs
 
 
-def build_models(window_size: int, dropout: float) -> list[tuple[ModelRunConfig, nn.Module]]:
+def build_models(
+    window_size: int,
+    dropout: float,
+    *,
+    memae_memory_size: int = MEMAE_MEMORY_SIZE,
+    memae_shrink_threshold: float | None = None,
+    memae_addressing: str = MEMAE_ADDRESSING,
+) -> list[tuple[ModelRunConfig, nn.Module]]:
     return [
         (
             ModelRunConfig(
@@ -490,6 +703,21 @@ def build_models(window_size: int, dropout: float) -> list[tuple[ModelRunConfig,
                 denoising=True,
             ),
             ResDilatedAE(base_channels=16, dropout=dropout),
+        ),
+        (
+            ModelRunConfig(
+                name="MemAE",
+                cli_name="memae",
+                output_stem="memae",
+                model_kind="memae",
+            ),
+            MemAE(
+                base_channels=24,
+                memory_size=memae_memory_size,
+                shrink_threshold=memae_shrink_threshold,
+                addressing=memae_addressing,
+                dropout=dropout,
+            ),
         ),
     ]
 
@@ -552,6 +780,8 @@ def build_manual_command(args: argparse.Namespace, model_name: str, *, resume: b
         command.extend(["--processed-root", args.processed_root.as_posix()])
     if args.metadata_root != METADATA_ROOT:
         command.extend(["--metadata-root", args.metadata_root.as_posix()])
+    if args.memae_addressing != MEMAE_ADDRESSING:
+        command.extend(["--memae-addressing", args.memae_addressing])
     if resume:
         command.append("--resume")
     return format_command(command)
@@ -585,10 +815,12 @@ def build_empty_history() -> dict[str, list[float]]:
         "train_time_loss": [],
         "train_freq_loss": [],
         "train_kl_loss": [],
+        "train_mem_loss": [],
         "val_total_loss": [],
         "val_time_loss": [],
         "val_freq_loss": [],
         "val_kl_loss": [],
+        "val_mem_loss": [],
         "beta": [],
         "lr": [],
     }
@@ -812,12 +1044,14 @@ def evaluate_epoch(
     freq_loss_weight: float,
     beta: float,
     model_kind: str,
+    memae_entropy_weight: float = 0.0,
 ) -> dict[str, float]:
     model.eval()
     total_loss = 0.0
     total_time = 0.0
     total_freq = 0.0
     total_kl = 0.0
+    total_mem = 0.0
     total_samples = 0
     with torch.no_grad():
         for batch in loader:
@@ -826,17 +1060,27 @@ def evaluate_epoch(
                 reconstruction, mu, logvar = model(batch)
                 time_loss = F.mse_loss(reconstruction.float(), batch.float(), reduction="mean")
                 kl_loss = compute_vae_kl(mu.float(), logvar.float())
+                mem_loss = torch.zeros((), device=device)
+            elif model_kind == "memae":
+                reconstruction, attention = model(batch)
+                time_loss = F.mse_loss(reconstruction.float(), batch.float(), reduction="mean")
+                kl_loss = torch.zeros((), device=device)
+                mem_loss = memory_entropy_loss(attention.float())
             else:
                 reconstruction = model(batch)
                 time_loss = F.mse_loss(reconstruction.float(), batch.float(), reduction="mean")
                 kl_loss = torch.zeros((), device=device)
+                mem_loss = torch.zeros((), device=device)
             freq_loss = compute_frequency_loss(reconstruction, batch) if freq_loss_weight > 0 else torch.zeros((), device=device)
-            total_batch_loss = time_loss + (freq_loss_weight * freq_loss) + (beta * kl_loss)
+            total_batch_loss = (
+                time_loss + (freq_loss_weight * freq_loss) + (beta * kl_loss) + (memae_entropy_weight * mem_loss)
+            )
             batch_size = int(batch.shape[0])
             total_loss += float(total_batch_loss.item()) * batch_size
             total_time += float(time_loss.item()) * batch_size
             total_freq += float(freq_loss.item()) * batch_size
             total_kl += float(kl_loss.item()) * batch_size
+            total_mem += float(mem_loss.item()) * batch_size
             total_samples += batch_size
     divisor = max(total_samples, 1)
     return {
@@ -844,6 +1088,7 @@ def evaluate_epoch(
         "time_loss": total_time / divisor,
         "freq_loss": total_freq / divisor,
         "kl_loss": total_kl / divisor,
+        "mem_loss": total_mem / divisor,
     }
 
 
@@ -860,12 +1105,16 @@ def train_single_model(
     freq_loss_weight: float,
     vae_beta_max: float,
     vae_warmup_epochs: int,
+    memae_entropy_weight: float,
     run_paths: RunPaths,
     seed: int,
     save_every_epochs: int,
     resume: bool,
     training_settings: dict[str, Any],
 ) -> dict[str, Any]:
+    # MemAE's decoder reads only from the memory bottleneck, so a frequency-domain
+    # loss term (designed to sharpen skip-connected AE detail) does not apply to it.
+    freq_loss_weight = 0.0 if run_config.model_kind == "memae" else freq_loss_weight
     model = model.to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(epochs, 1))
@@ -984,6 +1233,7 @@ def train_single_model(
                 epoch_time = 0.0
                 epoch_freq = 0.0
                 epoch_kl = 0.0
+                epoch_mem = 0.0
                 sample_count = 0
 
                 for batch in loaders["train"]:
@@ -996,16 +1246,28 @@ def train_single_model(
                             reconstruction, mu, logvar = model(model_input)
                             time_loss = F.mse_loss(reconstruction.float(), clean_target.float(), reduction="mean")
                             kl_loss = compute_vae_kl(mu.float(), logvar.float())
+                            mem_loss = torch.zeros((), device=device)
+                        elif run_config.model_kind == "memae":
+                            reconstruction, attention = model(model_input)
+                            time_loss = F.mse_loss(reconstruction.float(), clean_target.float(), reduction="mean")
+                            kl_loss = torch.zeros((), device=device)
+                            mem_loss = memory_entropy_loss(attention.float())
                         else:
                             reconstruction = model(model_input)
                             time_loss = F.mse_loss(reconstruction.float(), clean_target.float(), reduction="mean")
                             kl_loss = torch.zeros((), device=device)
+                            mem_loss = torch.zeros((), device=device)
                         freq_loss = (
                             compute_frequency_loss(reconstruction, clean_target)
                             if freq_loss_weight > 0
                             else torch.zeros((), device=device)
                         )
-                        total_loss = time_loss + (freq_loss_weight * freq_loss) + (beta * kl_loss)
+                        total_loss = (
+                            time_loss
+                            + (freq_loss_weight * freq_loss)
+                            + (beta * kl_loss)
+                            + (memae_entropy_weight * mem_loss)
+                        )
                     scaler.scale(total_loss).backward()
                     scaler.step(optimizer)
                     scaler.update()
@@ -1015,6 +1277,7 @@ def train_single_model(
                     epoch_time += float(time_loss.item()) * batch_size
                     epoch_freq += float(freq_loss.item()) * batch_size
                     epoch_kl += float(kl_loss.item()) * batch_size
+                    epoch_mem += float(mem_loss.item()) * batch_size
                     sample_count += batch_size
                     if interrupts.requested:
                         raise RunInterrupted(f"{interrupts.signal_name} received during epoch {epoch}.")
@@ -1026,6 +1289,7 @@ def train_single_model(
                     "time_loss": epoch_time / divisor,
                     "freq_loss": epoch_freq / divisor,
                     "kl_loss": epoch_kl / divisor,
+                    "mem_loss": epoch_mem / divisor,
                 }
                 val_summary = evaluate_epoch(
                     model=model,
@@ -1034,16 +1298,19 @@ def train_single_model(
                     freq_loss_weight=freq_loss_weight,
                     beta=beta,
                     model_kind=run_config.model_kind,
+                    memae_entropy_weight=memae_entropy_weight,
                 )
                 history["epoch"].append(epoch)
                 history["train_total_loss"].append(train_summary["total_loss"])
                 history["train_time_loss"].append(train_summary["time_loss"])
                 history["train_freq_loss"].append(train_summary["freq_loss"])
                 history["train_kl_loss"].append(train_summary["kl_loss"])
+                history["train_mem_loss"].append(train_summary["mem_loss"])
                 history["val_total_loss"].append(val_summary["total_loss"])
                 history["val_time_loss"].append(val_summary["time_loss"])
                 history["val_freq_loss"].append(val_summary["freq_loss"])
                 history["val_kl_loss"].append(val_summary["kl_loss"])
+                history["val_mem_loss"].append(val_summary["mem_loss"])
                 history["beta"].append(beta)
                 history["lr"].append(epoch_lr)
                 epoch_message = (
@@ -1187,6 +1454,8 @@ def compute_reconstruction_scores(
             batch = batch.to(device, non_blocking=device.type == "cuda")
             if model_kind == "vae":
                 reconstruction, _, _ = model(batch)
+            elif model_kind == "memae":
+                reconstruction, _ = model(batch)
             else:
                 reconstruction = model(batch)
             per_window_mse = torch.mean((reconstruction.float() - batch.float()) ** 2, dim=(1, 2))
@@ -1234,6 +1503,8 @@ def summarize_model_result(
             "final_val_freq_loss": float(history["val_freq_loss"][-1]),
             "final_train_kl_loss": float(history["train_kl_loss"][-1]),
             "final_val_kl_loss": float(history["val_kl_loss"][-1]),
+            "final_train_mem_loss": float(history["train_mem_loss"][-1]),
+            "final_val_mem_loss": float(history["val_mem_loss"][-1]),
             "history": history,
             "freq_loss_weight": float(freq_loss_weight),
             "parameter_count": int(parameter_count(model)),
@@ -1470,6 +1741,8 @@ def build_report(
                 f"- Final val freq loss: `{training['final_val_freq_loss']:.6f}`",
                 f"- Final train KL loss: `{training['final_train_kl_loss']:.6f}`",
                 f"- Final val KL loss: `{training['final_val_kl_loss']:.6f}`",
+                f"- Final train memory-entropy loss: `{training['final_train_mem_loss']:.6f}`",
+                f"- Final val memory-entropy loss: `{training['final_val_mem_loss']:.6f}`",
                 f"- Parameter count: `{training['parameter_count']}`",
                 f"- Model size on disk: `{training['checkpoint_size_mb']:.3f}` MB",
                 f"- Training time: `{training['elapsed_seconds']:.2f}` seconds",
@@ -1568,6 +1841,10 @@ def evaluate_and_write_run_outputs(
     freq_loss_weight: float,
     vae_beta_max: float,
     vae_kl_warmup_epochs: int,
+    memae_memory_size: int,
+    memae_shrink_threshold: float,
+    memae_entropy_weight: float,
+    memae_addressing: str,
     best_candidate_extra_seeds: int,
     threshold_rule: str,
     resume_used: bool,
@@ -1644,6 +1921,10 @@ def evaluate_and_write_run_outputs(
         "freq_loss_weight": float(freq_loss_weight),
         "vae_beta_max": float(vae_beta_max),
         "vae_kl_warmup_epochs": int(vae_kl_warmup_epochs),
+        "memae_memory_size": int(memae_memory_size),
+        "memae_shrink_threshold": float(memae_shrink_threshold),
+        "memae_entropy_weight": float(memae_entropy_weight),
+        "memae_addressing": memae_addressing,
         "label_provenance": label_map["summary"],
         "saved_score_arrays": {
             "val_healthy_scores": run_paths.val_healthy_scores_npy.as_posix(),
@@ -1744,7 +2025,18 @@ def main() -> int:
     )
     sample_batch = next(iter(loaders["train"]))
     baseline_reference = build_baseline_reference()
-    all_models = build_models(expected_width, args.dropout)
+    memae_shrink_threshold = (
+        default_shrink_threshold(args.memae_memory_size)
+        if args.memae_shrink_threshold is None
+        else float(args.memae_shrink_threshold)
+    )
+    all_models = build_models(
+        expected_width,
+        args.dropout,
+        memae_memory_size=args.memae_memory_size,
+        memae_shrink_threshold=memae_shrink_threshold,
+        memae_addressing=args.memae_addressing,
+    )
     selected_models = select_models(all_models, args.model)
     if not selected_models:
         raise RuntimeError(f"No model matched --model {args.model}.")
@@ -1763,6 +2055,10 @@ def main() -> int:
         "freq_loss_weight": float(args.freq_loss_weight),
         "vae_beta_max": float(args.vae_beta_max),
         "vae_kl_warmup_epochs": int(args.vae_kl_warmup_epochs),
+        "memae_memory_size": int(args.memae_memory_size),
+        "memae_shrink_threshold": float(memae_shrink_threshold),
+        "memae_entropy_weight": float(args.memae_entropy_weight),
+        "memae_addressing": args.memae_addressing,
         "save_every_epochs": int(args.save_every_epochs),
         "batch_size": int(batch_size),
         "threshold_rule": args.threshold_rule,
@@ -1787,6 +2083,7 @@ def main() -> int:
             freq_loss_weight=args.freq_loss_weight,
             vae_beta_max=args.vae_beta_max,
             vae_warmup_epochs=args.vae_kl_warmup_epochs,
+            memae_entropy_weight=args.memae_entropy_weight,
             run_paths=run_paths,
             seed=args.seed,
             save_every_epochs=args.save_every_epochs,
@@ -1818,6 +2115,10 @@ def main() -> int:
                 freq_loss_weight=args.freq_loss_weight,
                 vae_beta_max=args.vae_beta_max,
                 vae_kl_warmup_epochs=args.vae_kl_warmup_epochs,
+                memae_memory_size=args.memae_memory_size,
+                memae_shrink_threshold=memae_shrink_threshold,
+                memae_entropy_weight=args.memae_entropy_weight,
+                memae_addressing=args.memae_addressing,
                 best_candidate_extra_seeds=args.best_candidate_extra_seeds,
                 threshold_rule=args.threshold_rule,
                 resume_used=args.resume,

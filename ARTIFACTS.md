@@ -18,6 +18,15 @@ The release intentionally omits raw datasets, processed arrays, checkpoints, mod
 
 These files are omitted because they are generated, large, machine-specific, or governed by external dataset-provider terms. Raw CWRU and Paderborn data must be obtained from the official providers. Checkpoints are not redistributed because they are reproducible run outputs and can be large.
 
+This includes the MemAE comparator's run trees under `artifacts/generative_upgrades/memae/`,
+`artifacts/memae_lambda_sweep/`, and `artifacts/memae_control/`, and the unified evaluation summary
+under `artifacts/paderborn_unified_baselines/` — per-seed checkpoints, history, per-window score
+arrays, and the summary CSV are all generated and omitted like every other model's run output. The
+one MemAE artifact that is tracked is the mechanism verification pair,
+`artifacts/metrics/memae_verification_metrics.json` / `memae_verification_report.md`, since it
+falls under the general `artifacts/metrics/` allow-list. See
+[RESULTS_PROVENANCE.md](RESULTS_PROVENANCE.md) for the full artifact mapping.
+
 ## Regeneration
 
 Use [RUN_COMMANDS.md](RUN_COMMANDS.md) to regenerate omitted outputs. The main stages are dataset preparation, preprocessing, model training, evaluation, deployment benchmarking, and paper-package generation.
