@@ -15,6 +15,8 @@ try:
     from train_paderborn_baselines import ensure_required_files, read_json, resolve_paths
     from train_generative_upgrades import (
         ARTIFACTS_ROOT,
+        MEMAE_ADDRESSING,
+        MEMAE_MEMORY_SIZE,
         METADATA_ROOT,
         PROCESSED_ROOT,
         ModelRunConfig,
@@ -30,6 +32,8 @@ except ModuleNotFoundError:
     from scripts.train_paderborn_baselines import ensure_required_files, read_json, resolve_paths
     from scripts.train_generative_upgrades import (
         ARTIFACTS_ROOT,
+        MEMAE_ADDRESSING,
+        MEMAE_MEMORY_SIZE,
         METADATA_ROOT,
         PROCESSED_ROOT,
         ModelRunConfig,
@@ -48,7 +52,14 @@ RUN_CONFIG = ModelRunConfig(
     output_stem="resdilated_ae",
     model_kind="ae",
 )
+MEMAE_RUN_CONFIG = ModelRunConfig(
+    name="MemAE",
+    cli_name="memae",
+    output_stem="memae",
+    model_kind="memae",
+)
 THRESHOLD_RULE = "percentile_99_5"
+UNIFIED_BASELINES_ROOT = ARTIFACTS_ROOT / "paderborn_unified_baselines"
 PADEBORN_AE_MODEL_PATH = ARTIFACTS_ROOT / "models" / "paderborn_ae_baseline.pt"
 PADEBORN_AE_METRICS_PATH = ARTIFACTS_ROOT / "metrics" / "paderborn_ae_metrics.json"
 PADEBORN_IFOREST_METRICS_PATH = ARTIFACTS_ROOT / "metrics" / "paderborn_iforest_metrics.json"
@@ -72,6 +83,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-sizes", type=int, nargs="+", default=[32, 64])
     parser.add_argument("--benchmark-pool-size", type=int, default=512)
     parser.add_argument("--warmup-runs", type=int, default=12)
+    parser.add_argument(
+        "--include-memae",
+        action="store_true",
+        help="Also profile the MemAE comparator in the same process, on the same benchmark pool.",
+    )
+    parser.add_argument("--memae-seed", type=int, default=42, help="Saved MemAE seed to profile with --include-memae.")
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help="Defaults to <artifacts-root>/generative_upgrades/resdilated_ae/deployment.",
+    )
+    parser.add_argument(
+        "--output-stem",
+        default="resdilated_ae_deployment",
+        help="Basename for the emitted <stem>_metrics.json and <stem>_report.md pair.",
+    )
     return parser.parse_args()
 
 
@@ -195,6 +223,59 @@ def load_resdilatedae_from_checkpoint(
     model = model.to("cpu")
     model.eval()
     return model, checkpoint_payload
+
+
+def load_memae_from_checkpoint(
+    *,
+    checkpoint_path: Path,
+    expected_seed: int,
+    expected_width: int,
+) -> tuple[torch.nn.Module, dict[str, Any]]:
+    if not checkpoint_path.exists():
+        raise FileNotFoundError(f"Missing MemAE checkpoint: {checkpoint_path.as_posix()}")
+    checkpoint_payload = load_torch_payload(checkpoint_path)
+    model_cli_name = checkpoint_payload.get("model_cli_name")
+    model_name = checkpoint_payload.get("model_name")
+    checkpoint_seed = int(checkpoint_payload.get("seed", -1))
+    if model_cli_name != MEMAE_RUN_CONFIG.cli_name or model_name != MEMAE_RUN_CONFIG.name:
+        raise RuntimeError(
+            f"Checkpoint mismatch at {checkpoint_path.as_posix()}: "
+            f"expected {MEMAE_RUN_CONFIG.name}/{MEMAE_RUN_CONFIG.cli_name}, found {model_name}/{model_cli_name}"
+        )
+    if checkpoint_seed != expected_seed:
+        raise RuntimeError(
+            f"Checkpoint seed mismatch at {checkpoint_path.as_posix()}: expected {expected_seed}, found {checkpoint_seed}"
+        )
+    checkpoint_settings = checkpoint_payload.get("training_settings", {})
+    dropout = float(checkpoint_settings.get("dropout", 0.05))
+    shrink_threshold_setting = checkpoint_settings.get("memae_shrink_threshold")
+    model_candidates = select_models(
+        build_models(
+            expected_width,
+            dropout,
+            memae_memory_size=int(checkpoint_settings.get("memae_memory_size", MEMAE_MEMORY_SIZE)),
+            memae_shrink_threshold=None if shrink_threshold_setting is None else float(shrink_threshold_setting),
+            memae_addressing=str(checkpoint_settings.get("memae_addressing", MEMAE_ADDRESSING)),
+        ),
+        MEMAE_RUN_CONFIG.cli_name,
+    )
+    if len(model_candidates) != 1:
+        raise RuntimeError(
+            f"Expected exactly one model definition for {MEMAE_RUN_CONFIG.cli_name}, found {len(model_candidates)}."
+        )
+    _run_config, model = model_candidates[0]
+    model.load_state_dict(checkpoint_payload["state_dict"])
+    model = model.to("cpu")
+    model.eval()
+    return model, checkpoint_payload
+
+
+def load_unified_seed_metrics(model: str, seed: int) -> dict[str, Any] | None:
+    """Saved detection metrics for one model/seed from the unified Paderborn evaluation."""
+    metrics_path = UNIFIED_BASELINES_ROOT / model / f"seed_{seed}" / THRESHOLD_RULE / "metrics.json"
+    if not metrics_path.exists():
+        return None
+    return read_json(metrics_path)
 
 
 def load_compactae_from_checkpoint(checkpoint_path: Path) -> tuple[torch.nn.Module, dict[str, Any]]:
@@ -382,6 +463,8 @@ def build_report(
     benchmark_windows: np.ndarray,
     resdilated_summary: list[str],
     compactae_summary: list[str] | None,
+    memae_summary: list[str] | None,
+    memae_seed: int | None,
     resdilated_peak_rss_delta_bytes: int | None,
     compactae_peak_rss_delta_bytes: int | None,
     iforest_metrics: dict[str, Any] | None,
@@ -392,6 +475,8 @@ def build_report(
     table_rows = [resdilated_summary]
     if compactae_summary is not None:
         table_rows.append(compactae_summary)
+    if memae_summary is not None:
+        table_rows.append(memae_summary)
 
     lines = [
         "# Paderborn Deployment Metrics Report",
@@ -443,6 +528,13 @@ def build_report(
     else:
         lines.append(
             "- `ResDilatedAE` stays in a compact range on disk and on CPU, so it still supports an edge-friendly deployment story for Paderborn."
+        )
+
+    if memae_summary is not None:
+        lines.append(
+            f"- The `MemAE` comparator (saved seed `{memae_seed}`) was profiled in the same process, on the same "
+            "CPU thread budget and the same benchmark pool, so its parameter count, checkpoint size and "
+            "latency are directly comparable to `ResDilatedAE` rather than being quoted from a separate run."
         )
 
     if iforest_blocker is None and iforest_metrics is not None:
@@ -503,10 +595,14 @@ def main() -> int:
             )
         selected_seed_entry = matches[0]
 
-    metrics_output_dir = artifacts_root / "generative_upgrades" / RUN_CONFIG.output_stem / "deployment"
+    metrics_output_dir = (
+        args.output_dir.resolve()
+        if args.output_dir is not None
+        else artifacts_root / "generative_upgrades" / RUN_CONFIG.output_stem / "deployment"
+    )
     metrics_output_dir.mkdir(parents=True, exist_ok=True)
-    metrics_path = metrics_output_dir / "resdilated_ae_deployment_metrics.json"
-    report_path = metrics_output_dir / "resdilated_ae_deployment_report.md"
+    metrics_path = metrics_output_dir / f"{args.output_stem}_metrics.json"
+    report_path = metrics_output_dir / f"{args.output_stem}_report.md"
 
     run_paths = build_run_paths(artifacts_root=artifacts_root, run_config=RUN_CONFIG, seed=seed)
     if not run_paths.best_checkpoint.exists():
@@ -565,6 +661,43 @@ def main() -> int:
     else:
         compactae_blocker = f"Missing saved CompactAE checkpoint: {PADEBORN_AE_MODEL_PATH.as_posix()}"
 
+    memae_benchmark: dict[str, Any] | None = None
+    memae_parameter_count: int | None = None
+    memae_weights_size_bytes: int | None = None
+    memae_checkpoint_size_bytes: int | None = None
+    memae_metrics: dict[str, Any] | None = None
+    memae_checkpoint_path: Path | None = None
+    if args.include_memae:
+        memae_run_paths = build_run_paths(
+            artifacts_root=artifacts_root,
+            run_config=MEMAE_RUN_CONFIG,
+            seed=int(args.memae_seed),
+        )
+        memae_checkpoint_path = memae_run_paths.best_checkpoint
+        memae_rss_before_load = get_process_rss_bytes()
+        memae_model, memae_checkpoint = load_memae_from_checkpoint(
+            checkpoint_path=memae_checkpoint_path,
+            expected_seed=int(args.memae_seed),
+            expected_width=expected_width,
+        )
+        memae_rss_after_load = get_process_rss_bytes()
+        memae_parameter_count = int(parameter_count(memae_model))
+        memae_weights_size_bytes = serialize_state_dict_size_bytes(memae_checkpoint["state_dict"])
+        memae_checkpoint_size_bytes = int(memae_checkpoint_path.stat().st_size)
+        memae_benchmark = benchmark_model_cpu(
+            model=memae_model,
+            benchmark_windows=benchmark_windows,
+            single_runs=args.single_runs,
+            batch_runs=args.batch_runs,
+            batch_sizes=args.batch_sizes,
+            warmup_runs=args.warmup_runs,
+            rss_before_load=memae_rss_before_load,
+            rss_after_model_ready=memae_rss_after_load,
+        )
+        memae_metrics = load_unified_seed_metrics(MEMAE_RUN_CONFIG.output_stem, int(args.memae_seed))
+        del memae_model
+        gc.collect()
+
     iforest_metrics = read_json(PADEBORN_IFOREST_METRICS_PATH) if PADEBORN_IFOREST_METRICS_PATH.exists() else None
     iforest_model_candidates = list((artifacts_root / "models").glob("*iforest*")) if (artifacts_root / "models").exists() else []
     if iforest_model_candidates:
@@ -586,8 +719,9 @@ def main() -> int:
             performance_reference=resdilated_performance,
         )
     ]
+    compactae_summary_row: list[str] | None = None
     if compactae_benchmark is not None and compactae_parameter_count is not None and compactae_weights_size_bytes is not None:
-        summary_rows.append(
+        compactae_summary_row = (
             build_summary_row(
                 model_name="CompactAE",
                 parameter_total=compactae_parameter_count,
@@ -597,6 +731,18 @@ def main() -> int:
                 performance_reference=compactae_metrics,
             )
         )
+        summary_rows.append(compactae_summary_row)
+    memae_summary_row: list[str] | None = None
+    if memae_benchmark is not None and memae_parameter_count is not None and memae_weights_size_bytes is not None:
+        memae_summary_row = build_summary_row(
+            model_name="MemAE",
+            parameter_total=memae_parameter_count,
+            weights_size_bytes=memae_weights_size_bytes,
+            checkpoint_size_bytes=memae_checkpoint_size_bytes,
+            benchmark=memae_benchmark,
+            performance_reference=memae_metrics,
+        )
+        summary_rows.append(memae_summary_row)
 
     metrics_payload = {
         "study": "paderborn_resdilated_ae_deployment_metrics",
@@ -646,6 +792,16 @@ def main() -> int:
         metrics_payload["comparisons"]["CompactAE"] = {
             "benchmark_blocker": compactae_blocker,
         }
+    if memae_benchmark is not None and memae_parameter_count is not None and memae_weights_size_bytes is not None:
+        metrics_payload["models"]["MemAE"] = {
+            "checkpoint_path": memae_checkpoint_path.as_posix() if memae_checkpoint_path is not None else None,
+            "seed": int(args.memae_seed),
+            "parameter_count": memae_parameter_count,
+            "weights_only_size_bytes": memae_weights_size_bytes,
+            "checkpoint_size_bytes": memae_checkpoint_size_bytes,
+            "saved_detection_metrics": memae_metrics,
+            "cpu_benchmark": memae_benchmark,
+        }
 
     report_text = build_report(
         seed=seed,
@@ -653,7 +809,9 @@ def main() -> int:
         thread_count=int(torch.get_num_threads()),
         benchmark_windows=benchmark_windows,
         resdilated_summary=summary_rows[0],
-        compactae_summary=summary_rows[1] if len(summary_rows) > 1 else None,
+        compactae_summary=compactae_summary_row,
+        memae_summary=memae_summary_row,
+        memae_seed=int(args.memae_seed) if memae_summary_row is not None else None,
         resdilated_peak_rss_delta_bytes=resdilated_benchmark["memory_rss"]["peak_delta_bytes"],
         compactae_peak_rss_delta_bytes=None if compactae_benchmark is None else compactae_benchmark["memory_rss"]["peak_delta_bytes"],
         iforest_metrics=iforest_metrics,

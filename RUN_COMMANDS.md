@@ -67,6 +67,20 @@ python scripts/train_generative_upgrades.py --model memae --seed 123
 any check fails. Add `--skip-behavioural` to run the mechanism checks alone, which need no
 processed windows.
 
+Comparative analysis against ResDilatedAE-T, after the unified evaluation has been run with
+`--models all`:
+
+```powershell
+python scripts/eval_paderborn_deployment_metrics.py --include-memae --memae-seed 42 --output-dir artifacts/generative_upgrades/memae/analysis --output-stem memae_deployment
+python scripts/compare_memae_resdilated.py
+```
+
+`compare_memae_resdilated.py` reads only saved per-window score arrays, so it retrains nothing.
+It writes FAR-matched recall tables, the memory-disabled control contrast, the `λ` sweep, and an
+analysis note to `artifacts/generative_upgrades/memae/analysis/`. Its FAR-matched thresholds come
+in two flavours: `val_fitted` obeys the validation-only calibration rule and is the version that
+may enter the paper, while `test_oracle` reads test healthy scores and is a diagnostic bound only.
+
 ## Paderborn Ablation
 
 ```powershell
@@ -79,6 +93,10 @@ python scripts/eval_paderborn_ablation.py
 ```powershell
 python scripts/eval_paderborn_deployment_metrics.py
 ```
+
+Add `--include-memae` to profile the MemAE comparator in the same process, on the same benchmark
+pool and thread budget. Send those runs elsewhere with `--output-dir` / `--output-stem` so the
+tracked ResDilatedAE-T deployment numbers are not overwritten by a comparison run.
 
 ## Paper Package And Tables
 
