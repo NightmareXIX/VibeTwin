@@ -67,6 +67,25 @@ python scripts/train_generative_upgrades.py --model memae --seed 123
 any check fails. Add `--skip-behavioural` to run the mechanism checks alone, which need no
 processed windows.
 
+`--models all` in the Paderborn Baseline Evaluation command above includes MemAE once the three
+seeds have been trained; its rows land in `summary_by_model.csv` next to every other comparator.
+
+Before the three-seed run, the `lambda` sweep (seed 42 only) and the memory-disabled control
+(all three seeds) back the fairness paragraphs in the paper. Both are separate, non-canonical
+`--artifacts-root` trees so they cannot overwrite the seed runs above:
+
+```powershell
+foreach ($lam in 0.002, 0.004, 0.006) {
+    python scripts/train_generative_upgrades.py --model memae --seed 42 `
+        --memae-shrink-threshold $lam --artifacts-root artifacts/memae_lambda_sweep/lam_$lam
+}
+
+foreach ($seed in 42, 7, 123) {
+    python scripts/train_generative_upgrades.py --model memae --seed $seed `
+        --memae-shrink-threshold 0 --memae-entropy-weight 0 --artifacts-root artifacts/memae_control
+}
+```
+
 Comparative analysis against ResDilatedAE-T, after the unified evaluation has been run with
 `--models all`:
 

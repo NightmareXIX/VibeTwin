@@ -13,7 +13,9 @@ The repository contains source code, preprocessing metadata, manifest-generation
 - `reports/`: small release/provenance notes after local path scrubbing.
 - `artifacts/metrics/`: compact metrics and reports selected for provenance.
 - `artifacts/paper_package_v1/`: compact final metrics, reports, and candidate tables selected for paper review.
-- `paper_latex/`: manuscript source, tables, selected figures, diagrams, and a compiled snapshot.
+
+The manuscript itself (`paper/`: source, tables, figures, diagrams, compiled PDF) is a local,
+gitignored artifact and is not part of this repository's tracked contents.
 
 ## Quick Start
 
