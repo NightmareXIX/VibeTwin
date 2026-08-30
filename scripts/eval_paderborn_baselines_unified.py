@@ -54,7 +54,7 @@ PROCESSED_ROOT = PROJECT_ROOT / "data" / "processed" / "paderborn"
 METADATA_ROOT = PROJECT_ROOT / "data" / "metadata" / "paderborn"
 ARTIFACTS_ROOT = PROJECT_ROOT / "artifacts"
 DEFAULT_OUTPUT_ROOT = ARTIFACTS_ROOT / "paderborn_unified_baselines"
-DEFAULT_MODELS = ("ocsvm", "isolation_forest", "compact_ae", "resdilated_ae", "conv_vae", "deep_svdd")
+DEFAULT_MODELS = ("ocsvm", "isolation_forest", "compact_ae", "resdilated_ae", "conv_vae", "deep_svdd", "memae")
 EXPERIMENTAL_MODELS: tuple[str, ...] = ()
 SUPPORTED_MODELS = (*DEFAULT_MODELS, *EXPERIMENTAL_MODELS)
 THRESHOLD_RULES = ("percentile_99_5", "mean_plus_3std", "median_plus_4mad")
@@ -988,6 +988,143 @@ def run_conv_vae(context: RunContext, seed: int, _feature_cache: dict[str, Any])
     if saved is not None:
         return saved
     return run_conv_vae_from_checkpoint(context, seed)
+
+
+def memae_source_paths(seed: int) -> dict[str, Path]:
+    run_dir = ARTIFACTS_ROOT / "generative_upgrades" / "memae" / f"seed_{seed}"
+    return {
+        "run_dir": run_dir,
+        "val_healthy_scores": run_dir / "val_healthy_scores.npy",
+        "test_healthy_scores": run_dir / "test_healthy_scores.npy",
+        "test_fault_scores": run_dir / "test_fault_scores.npy",
+        "checkpoint": run_dir / "checkpoints" / "best.pt",
+        "metrics_json": run_dir / "metrics.json",
+        "status_json": run_dir / "status.json",
+        "report_md": run_dir / "report.md",
+    }
+
+
+def run_memae_from_saved_scores(context: RunContext, seed: int) -> ScoreBundle | None:
+    paths = memae_source_paths(seed)
+    score_paths = [paths["val_healthy_scores"], paths["test_healthy_scores"], paths["test_fault_scores"]]
+    if not all(path.exists() for path in score_paths):
+        return None
+    log(f"Loading MemAE saved score arrays for seed {seed}")
+    return ScoreBundle(
+        val_healthy_scores=load_score_array(paths["val_healthy_scores"], context.dataset.val_shape[0], "val_healthy"),
+        test_healthy_scores=load_score_array(
+            paths["test_healthy_scores"],
+            context.dataset.test_healthy_shape[0],
+            "test_healthy",
+        ),
+        test_fault_scores=load_score_array(paths["test_fault_scores"], context.dataset.test_fault_shape[0], "test_fault"),
+        score_source="existing_memae_score_arrays",
+        model_settings={
+            "model_variant": "MemAE",
+            "score_artifact_source": paths["run_dir"].as_posix(),
+            "training_source": "artifacts/generative_upgrades/memae",
+        },
+        extra_artifacts={key: path.as_posix() for key, path in paths.items() if path.exists()},
+    )
+
+
+def run_memae_from_checkpoint(context: RunContext, seed: int) -> ScoreBundle:
+    paths = memae_source_paths(seed)
+    checkpoint = paths["checkpoint"]
+    if not checkpoint.exists():
+        raise FileNotFoundError(
+            "Missing MemAE saved score arrays and checkpoint for seed "
+            f"{seed}; training required before unified evaluation. Expected checkpoint: {checkpoint.as_posix()}"
+        )
+    require_torch_available()
+
+    try:
+        from train_generative_upgrades import (
+            MEMAE_ADDRESSING,
+            MEMAE_MEMORY_SIZE,
+            build_models,
+            compute_reconstruction_scores,
+            load_torch_payload,
+            select_models,
+        )
+    except ModuleNotFoundError:  # pragma: no cover - package-style fallback
+        from scripts.train_generative_upgrades import (
+            MEMAE_ADDRESSING,
+            MEMAE_MEMORY_SIZE,
+            build_models,
+            compute_reconstruction_scores,
+            load_torch_payload,
+            select_models,
+        )
+
+    payload = load_torch_payload(checkpoint)
+    checkpoint_seed = payload.get("seed")
+    if checkpoint_seed is not None and int(checkpoint_seed) != int(seed):
+        raise RuntimeError(f"MemAE checkpoint seed mismatch: expected {seed}, found {checkpoint_seed}")
+    checkpoint_model = payload.get("model_cli_name")
+    if checkpoint_model is not None and checkpoint_model != "memae":
+        raise RuntimeError(f"MemAE checkpoint model mismatch: expected memae, found {checkpoint_model}")
+
+    settings = payload.get("training_settings", {})
+    dropout = float(settings.get("dropout", 0.05))
+    memae_memory_size = int(settings.get("memae_memory_size", MEMAE_MEMORY_SIZE))
+    memae_shrink_threshold_setting = settings.get("memae_shrink_threshold")
+    memae_shrink_threshold = None if memae_shrink_threshold_setting is None else float(memae_shrink_threshold_setting)
+    memae_addressing = str(settings.get("memae_addressing", MEMAE_ADDRESSING))
+    candidates = select_models(
+        build_models(
+            context.dataset.window_size,
+            dropout,
+            memae_memory_size=memae_memory_size,
+            memae_shrink_threshold=memae_shrink_threshold,
+            memae_addressing=memae_addressing,
+        ),
+        "memae",
+    )
+    if len(candidates) != 1:
+        raise RuntimeError(f"Expected one MemAE model definition, found {len(candidates)}")
+    _run_config, model = candidates[0]
+    state_dict = payload.get("state_dict") or payload.get("model_state_dict")
+    if state_dict is None:
+        raise RuntimeError(f"MemAE checkpoint has no state dict: {checkpoint.as_posix()}")
+    model.load_state_dict(state_dict)
+    model = model.to(context.device)
+    model.eval()
+
+    val_loader = make_torch_loader(context.dataset.paths.val_healthy, context.batch_size, shuffle=False, seed=seed)
+    test_healthy_loader = make_torch_loader(context.dataset.paths.test_healthy, context.batch_size, shuffle=False, seed=seed)
+    test_fault_loader = make_torch_loader(context.dataset.paths.test_fault, context.batch_size, shuffle=False, seed=seed)
+    log(f"Scoring MemAE from checkpoint for seed {seed}")
+    return ScoreBundle(
+        val_healthy_scores=compute_reconstruction_scores(model=model, loader=val_loader, device=context.device, model_kind="memae"),
+        test_healthy_scores=compute_reconstruction_scores(
+            model=model,
+            loader=test_healthy_loader,
+            device=context.device,
+            model_kind="memae",
+        ),
+        test_fault_scores=compute_reconstruction_scores(
+            model=model,
+            loader=test_fault_loader,
+            device=context.device,
+            model_kind="memae",
+        ),
+        score_source="existing_memae_checkpoint_inference",
+        model_settings={
+            "model_variant": "MemAE",
+            "checkpoint_training_settings": settings,
+            "batch_size": context.batch_size,
+            "device": str(context.device),
+        },
+        extra_artifacts={key: path.as_posix() for key, path in paths.items() if path.exists()},
+    )
+
+
+def run_memae(context: RunContext, seed: int, _feature_cache: dict[str, Any]) -> ScoreBundle:
+    saved = run_memae_from_saved_scores(context, seed)
+    if saved is not None:
+        return saved
+    return run_memae_from_checkpoint(context, seed)
 
 
 def deep_svdd_paths(output_root: Path, seed: int) -> dict[str, Path]:
@@ -2073,6 +2210,7 @@ def main() -> int:
         "resdilated_ae": run_resdilated_ae,
         "conv_vae": run_conv_vae,
         "deep_svdd": run_deep_svdd,
+        "memae": run_memae,
     }
     feature_cache: dict[str, Any] = {}
     summary_rows: list[dict[str, Any]] = []
