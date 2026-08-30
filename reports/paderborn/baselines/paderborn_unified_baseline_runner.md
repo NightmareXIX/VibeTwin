@@ -16,7 +16,7 @@
 - `preprocessing_config`: `data/metadata/paderborn/preprocessing_config.json`
 
 ## Models Ran Successfully
-- compact_ae, conv_vae, deep_svdd, isolation_forest, ocsvm, resdilated_ae
+- compact_ae, conv_vae, deep_svdd, isolation_forest, memae, ocsvm, resdilated_ae
 
 ## Models Not Run In Latest Smoke Summary
 - none
@@ -30,7 +30,7 @@
 - Combined summary refresh: `python scripts/eval_paderborn_baselines_unified.py --models isolation_forest resdilated_ae --threshold-rule percentile_99_5 --seed 42 --device cpu --skip-train-if-artifacts-exist`
 
 ## Latest Command Observed By Runner
-- `python scripts\eval_paderborn_baselines_unified.py --models compact_ae ocsvm isolation_forest conv_vae deep_svdd resdilated_ae --threshold-rule percentile_99_5 --seeds 42 7 123 --device cpu --skip-train-if-artifacts-exist`
+- `python scripts/eval_paderborn_baselines_unified.py --models all --threshold-rule percentile_99_5 --seeds 42 7 123 --device auto`
 
 ## Output Artifacts
 - Summary CSV: `artifacts/paderborn_unified_baselines/summary.csv`
