@@ -133,6 +133,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--save-every-epochs", type=int, default=1)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--threshold-rule", choices=("mean_plus_3std",), default="mean_plus_3std")
+    parser.add_argument(
+        "--healthy-test-scope",
+        choices=("test_split", "full_recording"),
+        default="test_split",
+        help="Healthy test windows of the held-out load: its test split only (original protocol) "
+        "or its whole healthy recording, which the fold never trains or calibrates on.",
+    )
     parser.add_argument("--resume", action="store_true", help="Resume an interrupted fold or skip already-completed folds.")
     args = parser.parse_args()
     if args.save_every_epochs <= 0:
@@ -314,6 +321,7 @@ def train_and_evaluate_fold(
         freq_loss_weight=float(args.freq_loss_weight),
         vae_beta_max=0.0,
         vae_warmup_epochs=0,
+        memae_entropy_weight=0.0,
         run_paths=run_paths,
         seed=int(args.seed),
         save_every_epochs=int(args.save_every_epochs),
@@ -841,6 +849,7 @@ def main() -> int:
             raw_test_healthy=raw_test_healthy,
             raw_test_fault=raw_test_fault,
             fault_labels=fault_labels,
+            healthy_test_scope=args.healthy_test_scope,
         )
 
         fold_result = train_and_evaluate_fold(

@@ -37,7 +37,16 @@ PROCESSED_ROOT = PROJECT_ROOT / "data" / "processed" / "paderborn"
 METADATA_ROOT = PROJECT_ROOT / "data" / "metadata" / "paderborn"
 WINDOW_MANIFEST_PATH = METADATA_ROOT / "window_manifest.csv"
 DEFAULT_ARTIFACTS_ROOT = PROJECT_ROOT / "artifacts" / "paderborn_ablation"
-DEFAULT_VARIANTS = ("compact_ae", "dilated_ae", "res_ae", "resdilated_time", "resdilated_full")
+DEFAULT_VARIANTS = (
+    "compact_ae",
+    "compact_ae_freq",
+    "dilated_time",
+    "dilated_ae",
+    "res_time",
+    "res_ae",
+    "resdilated_time",
+    "resdilated_full",
+)
 DEFAULT_SEEDS = (42, 7, 123)
 DEFAULT_THRESHOLD_RULES = ("val_p99_5", "val_mean_plus_3std", "train_mean_plus_3std")
 CALIBRATION_RULE_ORDER = ("train_mean_plus_3std", "val_mean_plus_3std", "val_p99_5")
@@ -95,6 +104,18 @@ def parse_args() -> argparse.Namespace:
         description="Evaluate saved Paderborn ablation runs with shared threshold and metric definitions.",
     )
     parser.add_argument("--artifacts-root", type=Path, default=DEFAULT_ARTIFACTS_ROOT)
+    parser.add_argument(
+        "--processed-root",
+        type=Path,
+        default=PROCESSED_ROOT,
+        help="Processed window arrays the runs were trained on (used to infer missing train_healthy scores).",
+    )
+    parser.add_argument(
+        "--metadata-root",
+        type=Path,
+        default=METADATA_ROOT,
+        help="Metadata directory matching --processed-root (window_manifest.csv for the group breakdown).",
+    )
     parser.add_argument("--variants", nargs="+", choices=tuple(VARIANT_CONFIGS), default=list(DEFAULT_VARIANTS))
     parser.add_argument("--seeds", nargs="+", type=int, default=list(DEFAULT_SEEDS))
     parser.add_argument(
@@ -537,6 +558,7 @@ def compute_train_scores_if_needed(
     compute_if_missing: bool,
     warnings: list[str],
     train_score_events: list[dict[str, Any]],
+    processed_root: Path = PROCESSED_ROOT,
 ) -> np.ndarray:
     if run_files.train_healthy_scores_npy.exists():
         return load_score_array(run_files.train_healthy_scores_npy, "train_healthy")
@@ -548,7 +570,7 @@ def compute_train_scores_if_needed(
 
     device = device_for_inference()
     batch_size = int(run_config.get("training", {}).get("batch_size") or (256 if device.type == "cuda" else 128))
-    train_windows_path = PROCESSED_ROOT / "train" / "healthy_windows.npy"
+    train_windows_path = processed_root / "train" / "healthy_windows.npy"
     if not train_windows_path.exists():
         raise FileNotFoundError(f"Missing processed Paderborn training windows: {train_windows_path.as_posix()}")
     dataset = MemmapWindowDataset(train_windows_path)
@@ -1059,6 +1081,8 @@ def build_report(
 def main() -> int:
     args = parse_args()
     artifacts_root = args.artifacts_root.resolve()
+    processed_root = args.processed_root.resolve()
+    window_manifest_path = args.metadata_root.resolve() / "window_manifest.csv"
     evaluation_root = artifacts_root / "evaluation"
     evaluation_root.mkdir(parents=True, exist_ok=True)
     if hasattr(torch.backends, "cudnn"):
@@ -1110,6 +1134,7 @@ def main() -> int:
                     compute_if_missing=args.compute_train_scores_if_missing,
                     warnings=warnings,
                     train_score_events=train_score_events,
+                    processed_root=processed_root,
                 )
 
             evaluated_runs.append(
@@ -1176,7 +1201,7 @@ def main() -> int:
     group_analysis_report_path: Path | None = None
 
     if selected_variant_seed_payloads:
-        manifest_rows = load_test_window_metadata(WINDOW_MANIFEST_PATH)
+        manifest_rows = load_test_window_metadata(window_manifest_path)
         healthy_metadata = manifest_rows["test_healthy"]
         fault_metadata = manifest_rows["test_fault"]
         group_analysis_assumptions = [
@@ -1233,7 +1258,7 @@ def main() -> int:
         )
         group_analysis_report_text = build_group_breakdown_report(
             evaluation_root=evaluation_root,
-            manifest_path=WINDOW_MANIFEST_PATH,
+            manifest_path=window_manifest_path,
             alignment_rows=group_alignment_rows,
             condition_rows=group_condition_summary_rows,
             damage_rows=group_damage_summary_rows,

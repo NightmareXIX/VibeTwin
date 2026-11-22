@@ -8,6 +8,8 @@ This release is prepared for conference-paper review. It includes source code, p
 
 Tracked materials include Python scripts, root documentation, `requirements.txt`, `environment.yml`, compact dataset metadata under `data/metadata/`, the CWRU `window_manifest.csv`, Markdown reports, selected JSON metrics, and compact paper-package provenance files.
 
+For the camera-ready version, the compact summaries in `artifacts/v3/analysis/` and the small per-fold files of `data/metadata/cwru48k/` and `data/metadata/paderborn_v3/` are tracked; the run directories under `artifacts/v3/` are not.
+
 Intentionally omitted materials include raw external datasets, processed NumPy arrays, trained checkpoints, local virtual environments, local wheels, generated score CSVs, ZIP packages, and bulky generated outputs.
 
 ## External Dataset Requirement

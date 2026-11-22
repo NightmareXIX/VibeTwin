@@ -1,5 +1,34 @@
 # Results Provenance
 
+## Camera-Ready Version (ICCIT 2026)
+
+All files below are tracked under `artifacts/v3/analysis/`. The run directories they summarize sit
+under `artifacts/v3/` and are generated locally (commands: camera-ready section of
+[RUN_COMMANDS.md](RUN_COMMANDS.md)). The manuscript, its tables, and its figures stay local.
+
+- Table I (CWRU, 48 kHz, five seeds): `cwru48k_summary.json` holds the per-model means, the
+  ResDilatedAE results per held-out load, and `commissioning_recalibration_ResDilatedAE` for the
+  64-window recalibration. Scripts: `eval_cwru_resdilated_load_shift.py`, `eval_cwru_load_shift.py`,
+  `analyze_cwru_v3.py`. `cwru_summary.json` is the same analysis on the mixed-rate set (12 kHz fault
+  files); it is kept for comparison and not reported.
+- Table II (Paderborn comparison): `paderborn_summary.json`. `models.<model>.summary` holds the
+  means, 95% confidence intervals, confusion counts, and FAR-matched recall (`far_matched`);
+  `significance` holds the Welch tests with Holm correction; `models["ablation/resdilated_time"].miss_analysis`
+  holds the miss rates by condition, damage group, and bearing. Table rows: `latex/paderborn_main_rows.tex`.
+- Table III (transfer): `paderborn_summary.json` under `transfer.unseen_bearing` and `transfer.loco`;
+  table rows in `latex/generalization_rows.tex`. The commissioning result at the unseen speed is in
+  `paderborn_loco_commissioning.json` (`scripts/eval_paderborn_loco_commissioning.py`).
+- Table IV (ablation): `paderborn_summary.json` under `ablation` (variants, frequency-loss pairs, and
+  the mean F1 change); table rows in `latex/ablation_rows.tex`. The training-threshold row comes from
+  `paderborn_ablation_evaluation/` (`eval_paderborn_ablation.py --compute-train-scores-if-missing`).
+- Alarm rules: the persistence rule is under `persistence` and the condition-specific thresholds
+  under `models["ablation/resdilated_time"].condition_thresholds`, both in `paderborn_summary.json`.
+- Fig. 2 and the DC-offset check: `scripts/make_fig2_v3.py` draws the figure (kept local with the
+  manuscript); `dc_offset_check.json` and `dc_offset/seed_*.json` come from `scripts/check_dc_offset_v3.py`.
+- CPU latency and stream replay: `cpu_profile.json` from `scripts/profile_v3_cpu.py`.
+
+The sections below document the submitted (review) version.
+
 ## CWRU Table I
 
 - `paper/tables/cwru_results_table.tex`: manuscript table. `paper/` is gitignored, so this file is

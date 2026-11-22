@@ -25,6 +25,7 @@ except ImportError as exc:  # pragma: no cover - dependency guard
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PROCESSED_ROOT = PROJECT_ROOT / "data" / "processed" / "paderborn"
+METADATA_ROOT = PROJECT_ROOT / "data" / "metadata" / "paderborn"
 ARTIFACTS_ROOT = PROJECT_ROOT / "artifacts"
 DEFAULT_ARTIFACTS_ROOT = ARTIFACTS_ROOT / "paderborn_ablation"
 
@@ -34,6 +35,10 @@ VARIANT_ORDER = (
     "res_ae",
     "resdilated_time",
     "resdilated_full",
+    # Camera-ready additions: every topology with and without the frequency loss.
+    "compact_ae_freq",
+    "dilated_time",
+    "res_time",
 )
 
 DEFAULT_BASE_CHANNELS = 16
@@ -113,6 +118,30 @@ VARIANT_CONFIGS = {
         use_dilation=True,
         frequency_loss_weight=DEFAULT_FREQ_LOSS_WEIGHT,
         description="Final ResDilatedAE topology trained with time-domain plus frequency-aware loss.",
+    ),
+    "compact_ae_freq": VariantConfig(
+        name="compact_ae_freq",
+        model_family="compact",
+        use_residual=False,
+        use_dilation=False,
+        frequency_loss_weight=DEFAULT_FREQ_LOSS_WEIGHT,
+        description="Compact convolutional AE baseline trained with time-domain plus frequency-aware loss.",
+    ),
+    "dilated_time": VariantConfig(
+        name="dilated_time",
+        model_family="configurable_resdilated",
+        use_residual=False,
+        use_dilation=True,
+        frequency_loss_weight=0.0,
+        description="Dilated blocks without local residual additions, time-domain loss only.",
+    ),
+    "res_time": VariantConfig(
+        name="res_time",
+        model_family="configurable_resdilated",
+        use_residual=True,
+        use_dilation=False,
+        frequency_loss_weight=0.0,
+        description="Local residual additions with all dilations fixed to 1, time-domain loss only.",
     ),
 }
 
@@ -377,6 +406,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--val-subset", type=int, default=0)
     parser.add_argument("--test-subset", type=int, default=0)
     parser.add_argument("--artifacts-root", type=Path, default=DEFAULT_ARTIFACTS_ROOT)
+    parser.add_argument(
+        "--processed-root",
+        type=Path,
+        default=PROCESSED_ROOT,
+        help="Processed window arrays ({train,val,test}/*_windows.npy layout of data/processed/paderborn).",
+    )
+    parser.add_argument(
+        "--metadata-root",
+        type=Path,
+        default=METADATA_ROOT,
+        help="Metadata directory matching --processed-root (recorded in run_config.json for provenance).",
+    )
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 
@@ -886,6 +927,8 @@ def build_run_config(
         },
         "data": {
             "protocol": "existing_processed_paderborn_healthy_only",
+            "processed_root": Path(args.processed_root).resolve().as_posix(),
+            "metadata_root": Path(args.metadata_root).resolve().as_posix(),
             "paths": {key: Path(value).as_posix() for key, value in asdict(array_paths).items()},
             "dataset_sizes": dataset_sizes,
         },
@@ -1164,7 +1207,7 @@ def run_variant_seed(
 def main() -> int:
     args = parse_args()
     artifacts_root = validate_artifacts_root(args.artifacts_root)
-    array_paths = resolve_array_paths(PROCESSED_ROOT)
+    array_paths = resolve_array_paths(args.processed_root.resolve())
     ensure_required_arrays(array_paths)
     dataset_sizes = build_dataset_sizes(array_paths, args.train_subset, args.val_subset, args.test_subset)
     device = get_device()
@@ -1173,6 +1216,7 @@ def main() -> int:
     print("Paderborn ablation Chunk 2 training harness", flush=True)
     print(f"Device: {device}", flush=True)
     print(f"Artifacts root: {artifacts_root.as_posix()}", flush=True)
+    print(f"Processed root: {args.processed_root.resolve().as_posix()}", flush=True)
     print(f"Variants: {', '.join(args.variants)}", flush=True)
     print(f"Seeds: {', '.join(str(seed) for seed in args.seeds)}", flush=True)
 

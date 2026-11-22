@@ -1,6 +1,6 @@
 # VibeTwin
 
-VibeTwin is a healthy-reference reconstruction framework for bearing fault detection. It trains compact and residual-dilated autoencoder models on healthy vibration windows, then evaluates anomaly detection under CWRU load shift and Paderborn cross-benchmark settings.
+VibeTwin is a healthy-reference reconstruction framework for bearing fault detection. It trains compact and residual-dilated autoencoder models on healthy vibration windows, then evaluates anomaly detection under CWRU load shift and on Paderborn, including the unseen-bearing and unseen-condition transfer protocols added for the camera-ready version (ICCIT 2026).
 
 This repository does not redistribute raw CWRU/Paderborn data, processed arrays, trained checkpoints, or bulky generated outputs.
 
@@ -13,9 +13,32 @@ The repository contains source code, preprocessing metadata, manifest-generation
 - `reports/`: small release/provenance notes after local path scrubbing.
 - `artifacts/metrics/`: compact metrics and reports selected for provenance.
 - `artifacts/paper_package_v1/`: compact final metrics, reports, and candidate tables selected for paper review.
+- `artifacts/v3/analysis/`: compact summaries behind the camera-ready (ICCIT 2026) tables, the DC-offset check, and the CPU profile.
 
 The manuscript itself (`paper/`: source, tables, figures, diagrams, compiled PDF) is a local,
 gitignored artifact and is not part of this repository's tracked contents.
+
+## Camera-Ready Version (ICCIT 2026)
+
+The camera-ready revision of the paper "VibeTwin: A Calibrated Healthy-Reference Reconstruction
+Framework for Bearing Fault Detection" reran every experiment. The main changes are:
+
+- CWRU is rebuilt so that healthy and fault files are all sampled at 48 kHz, and each held-out load's
+  whole healthy recording serves as healthy test data.
+- Paderborn results use five seeds (42, 7, 123, 2024, 2026), 95% confidence intervals, and Welch
+  tests with Holm correction.
+- Two baselines are new: a classical RMS/kurtosis/crest-factor/envelope indicator and an RBF-kernel
+  OC-SVM.
+- Two Paderborn transfer protocols test unseen healthy bearings (3 folds) and unseen operating
+  conditions (leave-one-condition-out, 4 folds).
+- The ablation trains every topology with and without the frequency-aware loss.
+- Persistence, condition-specific, and commissioning alarm rules, a check of the DC offset in the
+  residual score, and a single-thread CPU latency profile are added.
+
+The camera-ready runs write under `artifacts/v3/`; only the compact summaries in
+`artifacts/v3/analysis/` are tracked. The commands are in the camera-ready section of
+[RUN_COMMANDS.md](RUN_COMMANDS.md), and the table-to-file mapping is in
+[RESULTS_PROVENANCE.md](RESULTS_PROVENANCE.md).
 
 ## Quick Start
 
@@ -35,10 +58,11 @@ Raw datasets are not included. Obtain the Case Western Reserve University Bearin
 
 ```text
 data/raw/cwru/
+data/raw/cwru48k/
 data/raw/paderborn/
 ```
 
-See [DATASET_SETUP.md](DATASET_SETUP.md) for naming conventions, selected channels, Paderborn bearing lists, and metadata notes.
+`scripts/download_datasets.sh` downloads all three from the official sources. See [DATASET_SETUP.md](DATASET_SETUP.md) for naming conventions, selected channels, Paderborn bearing lists, and metadata notes.
 
 ## Reproducibility
 

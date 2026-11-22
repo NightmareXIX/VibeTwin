@@ -1,0 +1,170 @@
+{
+  "cpu": "12th Gen Intel(R) Core(TM) i3-12100F",
+  "torch": "2.15.0+cu132",
+  "threads": 1,
+  "batch_size": 1,
+  "seed": 42,
+  "parameters": 222657,
+  "checkpoint_mb": 0.8840246200561523,
+  "state_dict_mb": 0.8493690490722656,
+  "latency_ms": {
+    "n": 2000,
+    "mean": 5.330275268501282,
+    "median": 5.169266998564126,
+    "p95": 6.406195798808767,
+    "p99": 7.9783227121515665
+  },
+  "budget_ms": 16.0,
+  "replay": {
+    "recordings": [
+      {
+        "recording": "N15_M07_F10_K001_1",
+        "duration_s": 4.000015625,
+        "windows": 249,
+        "elapsed_s": 1.3483623329993861,
+        "realtime_factor": 2.9665732474906066,
+        "ms_per_hop": 5.415109771081872,
+        "alarm_fraction": 0.008032128514056224
+      },
+      {
+        "recording": "N15_M07_F10_KA04_1",
+        "duration_s": 4.0000625,
+        "windows": 249,
+        "elapsed_s": 1.3226933939986338,
+        "realtime_factor": 3.0241796913398145,
+        "ms_per_hop": 5.312021662645116,
+        "alarm_fraction": 1.0
+      },
+      {
+        "recording": "N15_M07_F10_KI04_1",
+        "duration_s": 4.000015625,
+        "windows": 249,
+        "elapsed_s": 1.3385142759980226,
+        "realtime_factor": 2.988399673225382,
+        "ms_per_hop": 5.375559341357521,
+        "alarm_fraction": 0.6265060240963856
+      },
+      {
+        "recording": "N15_M07_F10_KB23_1",
+        "duration_s": 4.000015625,
+        "windows": 249,
+        "elapsed_s": 1.3250588049995713,
+        "realtime_factor": 3.018745741628647,
+        "ms_per_hop": 5.321521305219162,
+        "alarm_fraction": 1.0
+      },
+      {
+        "recording": "N09_M07_F10_K001_1",
+        "duration_s": 4.012859375,
+        "windows": 249,
+        "elapsed_s": 1.3216300649983168,
+        "realtime_factor": 3.0362954666933293,
+        "ms_per_hop": 5.307751265053481,
+        "alarm_fraction": 0.008032128514056224
+      },
+      {
+        "recording": "N09_M07_F10_KA04_1",
+        "duration_s": 4.000015625,
+        "windows": 249,
+        "elapsed_s": 1.3289762910026184,
+        "realtime_factor": 3.009847242633856,
+        "ms_per_hop": 5.3372541807334075,
+        "alarm_fraction": 1.0
+      },
+      {
+        "recording": "N09_M07_F10_KI04_1",
+        "duration_s": 4.001359375,
+        "windows": 249,
+        "elapsed_s": 1.3494725400014431,
+        "realtime_factor": 2.9651284160222486,
+        "ms_per_hop": 5.419568433740736,
+        "alarm_fraction": 0.0
+      },
+      {
+        "recording": "N09_M07_F10_KB23_1",
+        "duration_s": 4.000015625,
+        "windows": 249,
+        "elapsed_s": 1.3567023489995336,
+        "realtime_factor": 2.9483369199955405,
+        "ms_per_hop": 5.448603811243107,
+        "alarm_fraction": 0.606425702811245
+      },
+      {
+        "recording": "N15_M01_F10_K001_1",
+        "duration_s": 4.00109375,
+        "windows": 249,
+        "elapsed_s": 1.3329690690006828,
+        "realtime_factor": 3.001640355390685,
+        "ms_per_hop": 5.3532894337376815,
+        "alarm_fraction": 0.004016064257028112
+      },
+      {
+        "recording": "N15_M01_F10_KA04_1",
+        "duration_s": 4.0051875,
+        "windows": 249,
+        "elapsed_s": 1.3619260160012345,
+        "realtime_factor": 2.940826045573073,
+        "ms_per_hop": 5.469582393579255,
+        "alarm_fraction": 1.0
+      },
+      {
+        "recording": "N15_M01_F10_KI04_1",
+        "duration_s": 4.0114375,
+        "windows": 249,
+        "elapsed_s": 1.3727699699993536,
+        "realtime_factor": 2.9221483479871644,
+        "ms_per_hop": 5.513132409635959,
+        "alarm_fraction": 0.7028112449799196
+      },
+      {
+        "recording": "N15_M01_F10_KB23_1",
+        "duration_s": 4.0,
+        "windows": 249,
+        "elapsed_s": 1.3464393770009337,
+        "realtime_factor": 2.970798439443758,
+        "ms_per_hop": 5.407387056228649,
+        "alarm_fraction": 1.0
+      },
+      {
+        "recording": "N15_M07_F04_K001_1",
+        "duration_s": 4.041703125,
+        "windows": 251,
+        "elapsed_s": 1.3472737800002506,
+        "realtime_factor": 2.9999122561408775,
+        "ms_per_hop": 5.367624621514943,
+        "alarm_fraction": 0.01593625498007968
+      },
+      {
+        "recording": "N15_M07_F04_KA04_1",
+        "duration_s": 4.007421875,
+        "windows": 249,
+        "elapsed_s": 1.3426576729980297,
+        "realtime_factor": 2.9846936829786253,
+        "ms_per_hop": 5.392199489951927,
+        "alarm_fraction": 1.0
+      },
+      {
+        "recording": "N15_M07_F04_KI04_1",
+        "duration_s": 4.0000625,
+        "windows": 249,
+        "elapsed_s": 1.37066649499684,
+        "realtime_factor": 2.9183339015003957,
+        "ms_per_hop": 5.504684718862811,
+        "alarm_fraction": 0.13253012048192772
+      },
+      {
+        "recording": "N15_M07_F04_KB23_1",
+        "duration_s": 4.001125,
+        "windows": 249,
+        "elapsed_s": 1.3617807420014287,
+        "realtime_factor": 2.9381565450246336,
+        "ms_per_hop": 5.46899896386116,
+        "alarm_fraction": 1.0
+      }
+    ],
+    "total_duration_s": 64.082390625,
+    "total_elapsed_s": 21.52789317499628,
+    "realtime_factor": 2.976714446884609,
+    "ms_per_hop": 5.400876361012614
+  }
+}

@@ -1,0 +1,339 @@
+{
+  "protocol": "unseen_bearing",
+  "fold": 2,
+  "fold_name": "fold_2",
+  "description": "Unseen healthy bearing: train on K002/K003/K004, validate on K001, test healthy on K005/K006 (each bearing contributes all of its main-protocol train/val/test healthy windows); test fault = every fault window.",
+  "held_out": {
+    "train_bearings": [
+      "K002",
+      "K003",
+      "K004"
+    ],
+    "val_bearings": [
+      "K001"
+    ],
+    "test_bearings": [
+      "K005",
+      "K006"
+    ]
+  },
+  "created_at": "2026-11-19 23:46:33 +0600",
+  "command": "python scripts/build_paderborn_transfer_splits.py --protocols unseen_bearing",
+  "source": {
+    "processed_root": "data/processed/paderborn",
+    "metadata_root": "data/metadata/paderborn",
+    "window_manifest": "data/metadata/paderborn/window_manifest.csv",
+    "normalization": {
+      "mean": -0.015629497962557828,
+      "std": 0.29467682173695553
+    }
+  },
+  "output": {
+    "processed_root": "data/processed/paderborn_v3/unseen_bearing/fold_2",
+    "metadata_root": "data/metadata/paderborn_v3/unseen_bearing/fold_2",
+    "arrays": {
+      "train_healthy": {
+        "path": "data/processed/paderborn_v3/unseen_bearing/fold_2/train/healthy_windows.npy",
+        "shape": [
+          57999,
+          2048
+        ],
+        "dtype": "float32",
+        "bytes": 475127936,
+        "written_mean": -3.529528181377388e-10,
+        "written_std": 1.0000000004424503
+      },
+      "val_healthy": {
+        "path": "data/processed/paderborn_v3/unseen_bearing/fold_2/val/healthy_windows.npy",
+        "shape": [
+          19325,
+          2048
+        ],
+        "dtype": "float32",
+        "bytes": 158310528,
+        "written_mean": -0.005585056470498041,
+        "written_std": 1.5396143821112844
+      },
+      "test_healthy": {
+        "path": "data/processed/paderborn_v3/unseen_bearing/fold_2/test/healthy_windows.npy",
+        "shape": [
+          38677,
+          2048
+        ],
+        "dtype": "float32",
+        "bytes": 316842112,
+        "written_mean": -0.012847345939452153,
+        "written_std": 1.1631320541836503
+      },
+      "test_fault": {
+        "path": "data/processed/paderborn_v3/unseen_bearing/fold_2/test/fault_windows.npy",
+        "shape": [
+          519082,
+          2048
+        ],
+        "dtype": "float32",
+        "bytes": 4252319872,
+        "written_mean": 0.10422683671817604,
+        "written_std": 1.4080046266619028
+      },
+      "fault_labels": {
+        "path": "data/processed/paderborn_v3/unseen_bearing/fold_2/test/fault_labels.npy",
+        "shape": [
+          519082
+        ],
+        "dtype": "int64",
+        "bytes": 4152784
+      }
+    },
+    "window_manifest": "data/metadata/paderborn_v3/unseen_bearing/fold_2/window_manifest.csv",
+    "copied_metadata_files": [
+      "bearing_label_map.json",
+      "bearing_label_map.md",
+      "file_map.csv",
+      "file_map.json",
+      "prepare_report.md",
+      "window_manifest_schema.md"
+    ]
+  },
+  "window_counts": {
+    "train_healthy": 57999,
+    "val_healthy": 19325,
+    "test_healthy": 38677,
+    "test_fault": 519082
+  },
+  "splits": {
+    "train_healthy": {
+      "n_windows": 57999,
+      "bearings": [
+        "K002",
+        "K003",
+        "K004"
+      ],
+      "conditions": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ],
+      "n_recordings": 240,
+      "source_subset_counts": {
+        "train_healthy": 41128,
+        "val_healthy": 8435,
+        "test_healthy": 8436
+      },
+      "counts_by_condition": {
+        "N09_M07_F10": 14479,
+        "N15_M01_F10": 14526,
+        "N15_M07_F04": 14493,
+        "N15_M07_F10": 14501
+      },
+      "counts_by_bearing": {
+        "K002": 19344,
+        "K003": 19343,
+        "K004": 19312
+      },
+      "counts_by_bearing_condition": {
+        "K002|N09_M07_F10": 4820,
+        "K002|N15_M01_F10": 4861,
+        "K002|N15_M07_F04": 4820,
+        "K002|N15_M07_F10": 4843,
+        "K003|N09_M07_F10": 4827,
+        "K003|N15_M01_F10": 4834,
+        "K003|N15_M07_F04": 4844,
+        "K003|N15_M07_F10": 4838,
+        "K004|N09_M07_F10": 4832,
+        "K004|N15_M01_F10": 4831,
+        "K004|N15_M07_F04": 4829,
+        "K004|N15_M07_F10": 4820
+      }
+    },
+    "val_healthy": {
+      "n_windows": 19325,
+      "bearings": [
+        "K001"
+      ],
+      "conditions": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ],
+      "n_recordings": 80,
+      "source_subset_counts": {
+        "train_healthy": 13694,
+        "val_healthy": 2815,
+        "test_healthy": 2816
+      },
+      "counts_by_condition": {
+        "N09_M07_F10": 4827,
+        "N15_M01_F10": 4823,
+        "N15_M07_F04": 4845,
+        "N15_M07_F10": 4830
+      },
+      "counts_by_bearing": {
+        "K001": 19325
+      },
+      "counts_by_bearing_condition": {
+        "K001|N09_M07_F10": 4827,
+        "K001|N15_M01_F10": 4823,
+        "K001|N15_M07_F04": 4845,
+        "K001|N15_M07_F10": 4830
+      }
+    },
+    "test_healthy": {
+      "n_windows": 38677,
+      "bearings": [
+        "K005",
+        "K006"
+      ],
+      "conditions": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ],
+      "n_recordings": 160,
+      "source_subset_counts": {
+        "train_healthy": 27409,
+        "val_healthy": 5634,
+        "test_healthy": 5634
+      },
+      "counts_by_condition": {
+        "N09_M07_F10": 9662,
+        "N15_M01_F10": 9671,
+        "N15_M07_F04": 9666,
+        "N15_M07_F10": 9678
+      },
+      "counts_by_bearing": {
+        "K005": 19338,
+        "K006": 19339
+      },
+      "counts_by_bearing_condition": {
+        "K005|N09_M07_F10": 4828,
+        "K005|N15_M01_F10": 4846,
+        "K005|N15_M07_F04": 4833,
+        "K005|N15_M07_F10": 4831,
+        "K006|N09_M07_F10": 4834,
+        "K006|N15_M01_F10": 4825,
+        "K006|N15_M07_F04": 4833,
+        "K006|N15_M07_F10": 4847
+      }
+    },
+    "test_fault": {
+      "n_windows": 519082,
+      "bearings": [
+        "KA01",
+        "KA03",
+        "KA04",
+        "KA05",
+        "KA06",
+        "KA07",
+        "KA08",
+        "KA09",
+        "KA15",
+        "KA16",
+        "KA22",
+        "KA30",
+        "KB23",
+        "KB24",
+        "KB27",
+        "KI01",
+        "KI03",
+        "KI04",
+        "KI05",
+        "KI07",
+        "KI08",
+        "KI14",
+        "KI16",
+        "KI17",
+        "KI18",
+        "KI21"
+      ],
+      "conditions": [
+        "N09_M07_F10",
+        "N15_M01_F10",
+        "N15_M07_F04",
+        "N15_M07_F10"
+      ],
+      "n_recordings": 2079,
+      "source_subset_counts": {
+        "test_fault": 519082
+      },
+      "counts_by_condition": {
+        "N09_M07_F10": 129757,
+        "N15_M01_F10": 129572,
+        "N15_M07_F04": 129938,
+        "N15_M07_F10": 129815
+      },
+      "n_bearings": 26,
+      "counts_by_damage_group": {
+        "KA": 239390,
+        "KB": 59923,
+        "KI": 219769
+      },
+      "counts_by_fault_label": {
+        "0": 239390,
+        "1": 59923,
+        "2": 219769
+      }
+    }
+  },
+  "normalization": {
+    "method": "zscore_global refit on fold healthy-train windows",
+    "mean": -0.014266629828585259,
+    "std": 0.25400125666053047,
+    "num_train_windows": 57999,
+    "fit_bearings": [
+      "K002",
+      "K003",
+      "K004"
+    ],
+    "fit_conditions": [
+      "N09_M07_F10",
+      "N15_M01_F10",
+      "N15_M07_F04",
+      "N15_M07_F10"
+    ],
+    "written_train_readback_mean": -3.529528181377388e-10,
+    "written_train_readback_std": 1.0000000004424503,
+    "written_moments_by_subset": {
+      "train_healthy": {
+        "mean": -3.529528181377388e-10,
+        "std": 1.0000000004424503
+      },
+      "val_healthy": {
+        "mean": -0.005585056470498041,
+        "std": 1.5396143821112844
+      },
+      "test_healthy": {
+        "mean": -0.012847345939452153,
+        "std": 1.1631320541836503
+      },
+      "test_fault": {
+        "mean": 0.10422683671817604,
+        "std": 1.4080046266619028
+      }
+    }
+  },
+  "checks": {
+    "healthy_bearings_disjoint_across_train_val_test": true,
+    "every_healthy_window_used_once": true,
+    "test_fault_is_all_fault_windows": true,
+    "subsets_in_recording_order": true,
+    "manifest_rows_match_array_rows": true,
+    "fault_labels_match_manifest": true,
+    "train_array_standardized_within_1e-3": true,
+    "spot_check_max_abs_error": {
+      "train_healthy": 0.0,
+      "val_healthy": 0.0,
+      "test_healthy": 0.0,
+      "test_fault": 0.0
+    }
+  },
+  "ordering": "Each subset follows main-manifest order: by recording (bearing, condition, repeat as ordered by preprocess_paderborn.py) and then window_start. window_index is the row in the fold array; source_subset/source_window_index give the main-protocol array and row.",
+  "notes": [
+    "Pooled healthy recordings concatenate the main train, val and test regions; window_start jumps by the guard gap (plus any region remainder) at region boundaries, so check window_start before treating neighbouring rows as overlapping windows.",
+    "Fault windows and labels are the main-protocol fault windows re-expressed in the fold normalization."
+  ],
+  "elapsed_seconds": 49.8
+}

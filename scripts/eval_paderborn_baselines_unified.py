@@ -12,7 +12,11 @@ from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
+from scipy.signal import butter, hilbert, sosfiltfilt
+from scipy.stats import kurtosis
+from sklearn.covariance import LedoitWolf
 from sklearn.ensemble import IsolationForest
+from sklearn.kernel_approximation import Nystroem
 from sklearn.linear_model import SGDOneClassSVM
 from sklearn.metrics import average_precision_score, f1_score, precision_score, recall_score, roc_auc_score
 from sklearn.preprocessing import StandardScaler
@@ -54,7 +58,22 @@ PROCESSED_ROOT = PROJECT_ROOT / "data" / "processed" / "paderborn"
 METADATA_ROOT = PROJECT_ROOT / "data" / "metadata" / "paderborn"
 ARTIFACTS_ROOT = PROJECT_ROOT / "artifacts"
 DEFAULT_OUTPUT_ROOT = ARTIFACTS_ROOT / "paderborn_unified_baselines"
-DEFAULT_MODELS = ("ocsvm", "isolation_forest", "compact_ae", "resdilated_ae", "conv_vae", "deep_svdd", "memae")
+DEFAULT_MODELS = (
+    "ocsvm",
+    "ocsvm_rbf",
+    "isolation_forest",
+    "classical",
+    "compact_ae",
+    "resdilated_ae",
+    "conv_vae",
+    "deep_svdd",
+    "memae",
+)
+# Classical condition-monitoring features. The defaults assume Paderborn vibration_1 at 64 kHz
+# (one 4 s measurement holds ~256k samples); scripts/eval_cwru_load_shift.py passes its own rate and band.
+CLASSICAL_FEATURE_NAMES = ("rms", "kurtosis_pearson", "crest_factor", "envelope_energy")
+PADERBORN_SAMPLING_RATE_HZ = 64000.0
+PADERBORN_ENVELOPE_BAND_HZ = (2000.0, 10000.0)
 EXPERIMENTAL_MODELS: tuple[str, ...] = ()
 SUPPORTED_MODELS = (*DEFAULT_MODELS, *EXPERIMENTAL_MODELS)
 THRESHOLD_RULES = ("percentile_99_5", "mean_plus_3std", "median_plus_4mad")
@@ -204,9 +223,34 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Unified healthy-only Paderborn baseline evaluator.",
     )
-    parser.add_argument("--processed-root", type=Path, default=PROCESSED_ROOT)
-    parser.add_argument("--metadata-root", type=Path, default=METADATA_ROOT)
-    parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
+    parser.add_argument(
+        "--processed-root",
+        type=Path,
+        default=PROCESSED_ROOT,
+        help="Processed window arrays ({train,val,test}/*_windows.npy layout of data/processed/paderborn).",
+    )
+    parser.add_argument(
+        "--metadata-root",
+        type=Path,
+        default=METADATA_ROOT,
+        help="Metadata directory (preprocessing_config.json, normalization_stats.json) of the processed root.",
+    )
+    parser.add_argument(
+        "--output-root",
+        type=Path,
+        default=DEFAULT_OUTPUT_ROOT,
+        help="Where per-model/seed/threshold artifacts and summaries are written.",
+    )
+    parser.add_argument(
+        "--source-artifacts-root",
+        type=Path,
+        default=ARTIFACTS_ROOT,
+        help=(
+            "Root holding previously trained artifacts that some models reuse "
+            "(generative_upgrades/{resdilated_ae,conv_vae,memae}/seed_*/ and models/paderborn_ae_baseline.pt). "
+            "Must be set explicitly when --processed-root is not the default dataset."
+        ),
+    )
     parser.add_argument("--models", nargs="+", default=["all"], help="Models to run, or 'all'.")
     parser.add_argument(
         "--threshold-rule",
@@ -236,6 +280,26 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--feature-chunk-size", type=int, default=4096)
     parser.add_argument("--ocsvm-nu", type=float, default=0.05)
     parser.add_argument("--ocsvm-max-iter", type=int, default=2000)
+    parser.add_argument(
+        "--ocsvm-rbf-n-components",
+        type=int,
+        default=500,
+        help="Nystroem RBF feature-map size for ocsvm_rbf.",
+    )
+    parser.add_argument(
+        "--classical-fs",
+        type=float,
+        default=PADERBORN_SAMPLING_RATE_HZ,
+        help="Sampling rate (Hz) used to design the classical envelope band-pass.",
+    )
+    parser.add_argument("--classical-band-low-hz", type=float, default=PADERBORN_ENVELOPE_BAND_HZ[0])
+    parser.add_argument("--classical-band-high-hz", type=float, default=PADERBORN_ENVELOPE_BAND_HZ[1])
+    parser.add_argument(
+        "--classical-filter-order",
+        type=int,
+        default=4,
+        help="Butterworth order N passed to scipy.signal.butter for the zero-phase envelope band-pass.",
+    )
     parser.add_argument("--iforest-n-estimators", type=int, default=300)
     parser.add_argument("--iforest-max-samples", type=int, default=256)
     parser.add_argument("--iforest-n-jobs", type=int, default=1)
@@ -658,6 +722,327 @@ def run_isolation_forest(context: RunContext, seed: int, feature_cache: dict[str
     )
 
 
+def save_split_scores(seed_dir: Path, bundle: ScoreBundle) -> dict[str, str]:
+    """Save per-split score arrays in the seed directory (same file names as Deep SVDD / generative_upgrades)."""
+    paths = {
+        "val_healthy_scores": seed_dir / "val_healthy_scores.npy",
+        "test_healthy_scores": seed_dir / "test_healthy_scores.npy",
+        "test_fault_scores": seed_dir / "test_fault_scores.npy",
+    }
+    save_numpy_array(paths["val_healthy_scores"], bundle.val_healthy_scores, np.float32)
+    save_numpy_array(paths["test_healthy_scores"], bundle.test_healthy_scores, np.float32)
+    save_numpy_array(paths["test_fault_scores"], bundle.test_fault_scores, np.float32)
+    return {key: path.as_posix() for key, path in paths.items()}
+
+
+def score_in_chunks(features: np.ndarray, score_fn: Callable[[np.ndarray], np.ndarray], chunk_size: int) -> np.ndarray:
+    row_count = int(features.shape[0])
+    scores = np.empty(row_count, dtype=np.float32)
+    for start in range(0, row_count, chunk_size):
+        end = min(start + chunk_size, row_count)
+        scores[start:end] = np.asarray(score_fn(features[start:end]), dtype=np.float32).reshape(-1)
+    return scores
+
+
+def rbf_scale_gamma(scaled_train_features: np.ndarray) -> float:
+    """sklearn's gamma='scale' heuristic: 1 / (n_features * X.var()) on the (scaled) training matrix."""
+    variance = float(np.asarray(scaled_train_features, dtype=np.float64).var())
+    if not math.isfinite(variance) or variance <= 0.0:
+        return 1.0
+    return float(1.0 / (scaled_train_features.shape[1] * variance))
+
+
+def run_ocsvm_rbf(context: RunContext, seed: int, feature_cache: dict[str, Any]) -> ScoreBundle:
+    """One-class SVM with an approximate RBF kernel: Nystroem feature map + SGDOneClassSVM.
+
+    Uses the same handcrafted feature bundle and healthy-train StandardScaler as the linear ``ocsvm`` model,
+    so the only change is the kernel (linear -> RBF via Nystroem, gamma='scale' heuristic).
+    """
+    bundle = get_shallow_feature_bundle(context, feature_cache)
+    scaler = StandardScaler()
+    train_features = scaler.fit_transform(bundle["train"])
+    gamma = rbf_scale_gamma(train_features)
+    n_components = min(int(context.args.ocsvm_rbf_n_components), int(train_features.shape[0]))
+    if n_components <= 0:
+        raise ValueError("--ocsvm-rbf-n-components must be positive.")
+    nystroem = Nystroem(kernel="rbf", gamma=gamma, n_components=n_components, random_state=seed)
+    log(f"Fitting Nystroem RBF map (gamma={gamma:.6g}, n_components={n_components}) on healthy training features")
+    train_mapped = nystroem.fit_transform(train_features)
+    model = SGDOneClassSVM(
+        nu=context.args.ocsvm_nu,
+        random_state=seed,
+        max_iter=context.args.ocsvm_max_iter,
+        tol=1e-3,
+        shuffle=True,
+    )
+    log("Fitting RBF OC-SVM (SGDOneClassSVM on Nystroem features) on healthy training features")
+    model.fit(train_mapped)
+    del train_mapped
+
+    def score_fn(raw_features: np.ndarray) -> np.ndarray:
+        # compute_anomaly_scores negates decision_function, so larger = more abnormal.
+        return compute_anomaly_scores(model, nystroem.transform(scaler.transform(raw_features)))
+
+    chunk_size = 16384
+    score_bundle = ScoreBundle(
+        val_healthy_scores=score_in_chunks(bundle["val"], score_fn, chunk_size),
+        test_healthy_scores=score_in_chunks(bundle["test_healthy"], score_fn, chunk_size),
+        test_fault_scores=score_in_chunks(bundle["test_fault"], score_fn, chunk_size),
+        score_source="trained_nystroem_rbf_sgd_one_class_svm",
+        model_settings={
+            "model_variant": "Nystroem_rbf+SGDOneClassSVM_full_train",
+            "kernel": "rbf",
+            "gamma": gamma,
+            "gamma_rule": "scale: 1/(n_features * var(scaled healthy-train features))",
+            "n_components": n_components,
+            "nu": context.args.ocsvm_nu,
+            "max_iter": context.args.ocsvm_max_iter,
+            "tol": 1e-3,
+            "n_iter": int(getattr(model, "n_iter_", -1)),
+            "feature_names": tuple(bundle["feature_config"].feature_names),
+            "feature_scaler_fit": "train_healthy",
+            "nystroem_fit": "train_healthy",
+            "score_direction": "larger_is_more_abnormal (negated decision_function)",
+        },
+        extra_artifacts={},
+    )
+    seed_dir = model_seed_dir(context.args.output_root, "ocsvm_rbf", seed)
+    if joblib is not None:
+        model_path = seed_dir / "ocsvm_rbf_pipeline.joblib"
+        model_path.parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump(
+            {
+                "nystroem": nystroem,
+                "model": model,
+                "scaler": scaler,
+                "feature_names": tuple(bundle["feature_config"].feature_names),
+                "settings": {
+                    "nu": context.args.ocsvm_nu,
+                    "max_iter": context.args.ocsvm_max_iter,
+                    "gamma": gamma,
+                    "n_components": n_components,
+                },
+            },
+            model_path,
+        )
+        score_bundle.extra_artifacts["joblib"] = model_path.as_posix()
+    score_bundle.extra_artifacts.update(save_split_scores(seed_dir, score_bundle))
+    return score_bundle
+
+
+def design_classical_bandpass(fs_hz: float, low_hz: float, high_hz: float, order: int = 4) -> np.ndarray:
+    """Butterworth band-pass in second-order sections (applied zero-phase with sosfiltfilt)."""
+    nyquist = 0.5 * float(fs_hz)
+    if not 0.0 < float(low_hz) < float(high_hz) < nyquist:
+        raise ValueError(
+            f"Envelope band must satisfy 0 < low < high < Nyquist ({nyquist:g} Hz); got {low_hz:g}-{high_hz:g} Hz."
+        )
+    if int(order) <= 0:
+        raise ValueError("Band-pass filter order must be positive.")
+    return butter(int(order), [float(low_hz), float(high_hz)], btype="bandpass", fs=float(fs_hz), output="sos")
+
+
+def classical_condition_features(
+    windows: np.ndarray,
+    sos: np.ndarray,
+    *,
+    signal_scale: float = 1.0,
+    signal_offset: float = 0.0,
+) -> np.ndarray:
+    """Per-window RMS, Pearson kurtosis, crest factor and band-passed Hilbert-envelope energy.
+
+    ``signal_scale``/``signal_offset`` undo a global z-score (x_raw = x * scale + offset) so features are
+    computed on the recorded signal. Returns float64 of shape (n_windows, 4), ordered as CLASSICAL_FEATURE_NAMES.
+    """
+    signals = np.asarray(windows, dtype=np.float64)
+    if signals.ndim != 2:
+        raise ValueError(f"Expected 2D windows, got {signals.shape}")
+    if signal_scale != 1.0 or signal_offset != 0.0:
+        signals = signals * float(signal_scale) + float(signal_offset)
+    rms = np.sqrt(np.mean(np.square(signals), axis=1))
+    kurtosis_value = np.nan_to_num(
+        kurtosis(signals, axis=1, fisher=False, bias=True),
+        nan=0.0,
+        posinf=0.0,
+        neginf=0.0,
+    )
+    crest_factor = np.max(np.abs(signals), axis=1) / np.maximum(rms, 1e-12)
+    band_passed = sosfiltfilt(sos, signals, axis=1)
+    envelope = np.abs(hilbert(band_passed, axis=1))
+    envelope_energy = np.mean(np.square(envelope), axis=1)
+    return np.column_stack([rms, kurtosis_value, crest_factor, envelope_energy])
+
+
+def extract_classical_features_chunked(
+    windows: np.ndarray,
+    sos: np.ndarray,
+    chunk_size: int,
+    split_name: str,
+    *,
+    signal_scale: float = 1.0,
+    signal_offset: float = 0.0,
+) -> np.ndarray:
+    if chunk_size <= 0:
+        raise ValueError("Feature chunk size must be positive.")
+    row_count = int(windows.shape[0])
+    features = np.empty((row_count, len(CLASSICAL_FEATURE_NAMES)), dtype=np.float64)
+    log(f"Extracting {len(CLASSICAL_FEATURE_NAMES)} classical features for {split_name} ({row_count} windows)")
+    for start in range(0, row_count, chunk_size):
+        end = min(start + chunk_size, row_count)
+        features[start:end] = classical_condition_features(
+            np.asarray(windows[start:end], dtype=np.float32),
+            sos,
+            signal_scale=signal_scale,
+            signal_offset=signal_offset,
+        )
+    return features
+
+
+def fit_classical_mahalanobis(train_features: np.ndarray) -> tuple[StandardScaler, LedoitWolf]:
+    """Healthy-train standardization + Ledoit-Wolf covariance (standardizing first makes the shrinkage
+    target scale-free across features with different units)."""
+    features = np.asarray(train_features, dtype=np.float64)
+    if not np.all(np.isfinite(features)):
+        raise ValueError("Classical healthy-train features contain non-finite values.")
+    scaler = StandardScaler().fit(features)
+    covariance = LedoitWolf().fit(scaler.transform(features))
+    return scaler, covariance
+
+
+def classical_mahalanobis_scores(scaler: StandardScaler, covariance: LedoitWolf, features: np.ndarray) -> np.ndarray:
+    """Mahalanobis distance (not squared) to the healthy-train feature distribution; larger = more abnormal."""
+    squared = covariance.mahalanobis(scaler.transform(np.asarray(features, dtype=np.float64)))
+    return np.sqrt(np.maximum(squared, 0.0)).astype(np.float32)
+
+
+def classical_signal_affine(metadata_root: Path) -> tuple[float, float, str]:
+    """Return (scale, offset, description) that maps processed windows back to the recorded signal."""
+    stats_path = metadata_root / "normalization_stats.json"
+    if stats_path.exists():
+        stats = read_json(stats_path)
+        if stats.get("method") == "zscore_global" and "mean" in stats and "std" in stats:
+            return float(stats["std"]), float(stats["mean"]), "recorded_signal (global z-score undone)"
+    return 1.0, 0.0, "processed_windows_as_stored"
+
+
+def classical_settings(args: argparse.Namespace) -> dict[str, Any]:
+    return {
+        "fs_hz": float(args.classical_fs),
+        "band_hz": [float(args.classical_band_low_hz), float(args.classical_band_high_hz)],
+        "filter": f"butterworth_bandpass_N{int(args.classical_filter_order)}_sosfiltfilt_zero_phase",
+        "filter_order": int(args.classical_filter_order),
+    }
+
+
+def get_classical_feature_bundle(context: RunContext, cache: dict[str, Any]) -> dict[str, Any]:
+    settings = classical_settings(context.args)
+    cache_key = (
+        f"classical;fs={settings['fs_hz']};band={settings['band_hz']};order={settings['filter_order']};"
+        f"chunk={context.args.feature_chunk_size}"
+    )
+    if cache_key in cache:
+        return cache[cache_key]
+
+    sos = design_classical_bandpass(
+        settings["fs_hz"],
+        settings["band_hz"][0],
+        settings["band_hz"][1],
+        settings["filter_order"],
+    )
+    scale, offset, signal_domain = classical_signal_affine(context.args.metadata_root)
+    paths = context.dataset.paths
+    window_size = context.dataset.window_size
+    chunk_size = context.args.feature_chunk_size
+    split_paths = {
+        "train": (paths.train_healthy, "train_healthy"),
+        "val": (paths.val_healthy, "val_healthy"),
+        "test_healthy": (paths.test_healthy, "test_healthy"),
+        "test_fault": (paths.test_fault, "test_fault"),
+    }
+    bundle: dict[str, Any] = {
+        "sos": sos,
+        "settings": {**settings, "signal_domain": signal_domain, "signal_scale": scale, "signal_offset": offset},
+    }
+    for key, (path, split_name) in split_paths.items():
+        bundle[key] = extract_classical_features_chunked(
+            load_memmap(path, window_size),
+            sos,
+            chunk_size,
+            split_name,
+            signal_scale=scale,
+            signal_offset=offset,
+        )
+    cache[cache_key] = bundle
+    return bundle
+
+
+def run_classical(context: RunContext, seed: int, feature_cache: dict[str, Any]) -> ScoreBundle:
+    """Classical condition-monitoring baseline: RMS, kurtosis, crest factor and envelope energy scored by the
+    Ledoit-Wolf Mahalanobis distance to healthy-train features. Deterministic; emitted per seed for uniform tables."""
+    bundle = get_classical_feature_bundle(context, feature_cache)
+    log("Fitting Ledoit-Wolf Mahalanobis model on healthy training classical features")
+    scaler, covariance = fit_classical_mahalanobis(bundle["train"])
+    score_bundle = ScoreBundle(
+        val_healthy_scores=classical_mahalanobis_scores(scaler, covariance, bundle["val"]),
+        test_healthy_scores=classical_mahalanobis_scores(scaler, covariance, bundle["test_healthy"]),
+        test_fault_scores=classical_mahalanobis_scores(scaler, covariance, bundle["test_fault"]),
+        score_source="classical_cm_features_ledoit_wolf_mahalanobis",
+        model_settings={
+            "model_variant": "ClassicalCM_Mahalanobis",
+            "feature_names": CLASSICAL_FEATURE_NAMES,
+            "kurtosis": "pearson (scipy fisher=False, bias=True)",
+            "crest_factor": "max|x| / rms",
+            "envelope_energy": "mean(|hilbert(bandpass(x))|^2)",
+            **bundle["settings"],
+            "feature_scaler_fit": "train_healthy",
+            "covariance": "sklearn LedoitWolf on standardized healthy-train features",
+            "ledoit_wolf_shrinkage": float(covariance.shrinkage_),
+            "score": "mahalanobis_distance (sqrt of squared distance)",
+            "score_direction": "larger_is_more_abnormal",
+            "deterministic": True,
+            "seed_effect": "none; emitted per seed for uniform downstream tables",
+        },
+        extra_artifacts={},
+    )
+    seed_dir = model_seed_dir(context.args.output_root, "classical", seed)
+    if joblib is not None:
+        model_path = seed_dir / "classical_mahalanobis.joblib"
+        model_path.parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump(
+            {
+                "scaler": scaler,
+                "covariance": covariance,
+                "sos": bundle["sos"],
+                "feature_names": CLASSICAL_FEATURE_NAMES,
+                "settings": bundle["settings"],
+            },
+            model_path,
+        )
+        score_bundle.extra_artifacts["joblib"] = model_path.as_posix()
+    score_bundle.extra_artifacts.update(save_split_scores(seed_dir, score_bundle))
+    return score_bundle
+
+
+def uses_default_processed_root(args: argparse.Namespace) -> bool:
+    return Path(args.processed_root).resolve() == PROCESSED_ROOT.resolve()
+
+
+def source_artifacts_root(context: RunContext) -> Path:
+    """Root of previously trained artifacts (saved score arrays / checkpoints) reused by some models.
+
+    Artifacts under the default root were produced on the default Paderborn protocol, so reusing them on a
+    different --processed-root would silently score the wrong data (or a model trained on other splits).
+    """
+    root = Path(context.args.source_artifacts_root).resolve()
+    if root == ARTIFACTS_ROOT.resolve() and not uses_default_processed_root(context.args):
+        raise RuntimeError(
+            "This model reuses saved scores/checkpoints from the default artifacts root, which belong to the "
+            "default Paderborn protocol; pass --source-artifacts-root pointing at artifacts trained on "
+            f"{Path(context.args.processed_root).as_posix()}."
+        )
+    return root
+
+
 def require_torch_available() -> None:
     if torch is None or DataLoader is None:
         raise RuntimeError("PyTorch is required for this neural baseline.")
@@ -683,8 +1068,13 @@ def load_compact_checkpoint_if_available(context: RunContext, seed: int) -> tupl
     require_torch_available()
     candidates = [
         (model_seed_dir(context.args.output_root, "compact_ae", seed) / "compact_ae.pt", "unified_compact_ae_checkpoint"),
-        (ARTIFACTS_ROOT / "models" / "paderborn_ae_baseline.pt", "existing_project_paderborn_ae_checkpoint"),
     ]
+    project_artifacts_root = Path(context.args.source_artifacts_root).resolve()
+    if project_artifacts_root != ARTIFACTS_ROOT.resolve() or uses_default_processed_root(context.args):
+        # The project checkpoint was trained on the default protocol; skip it for other processed roots.
+        candidates.append(
+            (project_artifacts_root / "models" / "paderborn_ae_baseline.pt", "existing_project_paderborn_ae_checkpoint")
+        )
     for path, source in candidates:
         if not path.exists():
             continue
@@ -780,8 +1170,8 @@ def load_score_array(path: Path, expected_count: int, label: str) -> np.ndarray:
     return scores
 
 
-def resdilated_source_paths(seed: int) -> dict[str, Path]:
-    run_dir = ARTIFACTS_ROOT / "generative_upgrades" / "resdilated_ae" / f"seed_{seed}"
+def resdilated_source_paths(seed: int, artifacts_root: Path = ARTIFACTS_ROOT) -> dict[str, Path]:
+    run_dir = artifacts_root / "generative_upgrades" / "resdilated_ae" / f"seed_{seed}"
     return {
         "run_dir": run_dir,
         "val_healthy_scores": run_dir / "val_healthy_scores.npy",
@@ -792,7 +1182,7 @@ def resdilated_source_paths(seed: int) -> dict[str, Path]:
 
 
 def run_resdilated_from_saved_scores(context: RunContext, seed: int) -> ScoreBundle | None:
-    paths = resdilated_source_paths(seed)
+    paths = resdilated_source_paths(seed, source_artifacts_root(context))
     score_paths = [paths["val_healthy_scores"], paths["test_healthy_scores"], paths["test_fault_scores"]]
     if not all(path.exists() for path in score_paths):
         return None
@@ -817,7 +1207,7 @@ def run_resdilated_from_saved_scores(context: RunContext, seed: int) -> ScoreBun
 
 def run_resdilated_from_checkpoint(context: RunContext, seed: int) -> ScoreBundle:
     require_torch_available()
-    paths = resdilated_source_paths(seed)
+    paths = resdilated_source_paths(seed, source_artifacts_root(context))
     checkpoint = paths["checkpoint"]
     if not checkpoint.exists():
         raise FileNotFoundError(
@@ -880,8 +1270,8 @@ def run_resdilated_ae(context: RunContext, seed: int, _feature_cache: dict[str, 
     return run_resdilated_from_checkpoint(context, seed)
 
 
-def conv_vae_source_paths(seed: int) -> dict[str, Path]:
-    run_dir = ARTIFACTS_ROOT / "generative_upgrades" / "conv_vae" / f"seed_{seed}"
+def conv_vae_source_paths(seed: int, artifacts_root: Path = ARTIFACTS_ROOT) -> dict[str, Path]:
+    run_dir = artifacts_root / "generative_upgrades" / "conv_vae" / f"seed_{seed}"
     return {
         "run_dir": run_dir,
         "val_healthy_scores": run_dir / "val_healthy_scores.npy",
@@ -895,7 +1285,7 @@ def conv_vae_source_paths(seed: int) -> dict[str, Path]:
 
 
 def run_conv_vae_from_saved_scores(context: RunContext, seed: int) -> ScoreBundle | None:
-    paths = conv_vae_source_paths(seed)
+    paths = conv_vae_source_paths(seed, source_artifacts_root(context))
     score_paths = [paths["val_healthy_scores"], paths["test_healthy_scores"], paths["test_fault_scores"]]
     if not all(path.exists() for path in score_paths):
         return None
@@ -919,7 +1309,7 @@ def run_conv_vae_from_saved_scores(context: RunContext, seed: int) -> ScoreBundl
 
 
 def run_conv_vae_from_checkpoint(context: RunContext, seed: int) -> ScoreBundle:
-    paths = conv_vae_source_paths(seed)
+    paths = conv_vae_source_paths(seed, source_artifacts_root(context))
     checkpoint = paths["checkpoint"]
     if not checkpoint.exists():
         raise FileNotFoundError(
@@ -990,8 +1380,8 @@ def run_conv_vae(context: RunContext, seed: int, _feature_cache: dict[str, Any])
     return run_conv_vae_from_checkpoint(context, seed)
 
 
-def memae_source_paths(seed: int) -> dict[str, Path]:
-    run_dir = ARTIFACTS_ROOT / "generative_upgrades" / "memae" / f"seed_{seed}"
+def memae_source_paths(seed: int, artifacts_root: Path = ARTIFACTS_ROOT) -> dict[str, Path]:
+    run_dir = artifacts_root / "generative_upgrades" / "memae" / f"seed_{seed}"
     return {
         "run_dir": run_dir,
         "val_healthy_scores": run_dir / "val_healthy_scores.npy",
@@ -1005,7 +1395,7 @@ def memae_source_paths(seed: int) -> dict[str, Path]:
 
 
 def run_memae_from_saved_scores(context: RunContext, seed: int) -> ScoreBundle | None:
-    paths = memae_source_paths(seed)
+    paths = memae_source_paths(seed, source_artifacts_root(context))
     score_paths = [paths["val_healthy_scores"], paths["test_healthy_scores"], paths["test_fault_scores"]]
     if not all(path.exists() for path in score_paths):
         return None
@@ -1029,7 +1419,7 @@ def run_memae_from_saved_scores(context: RunContext, seed: int) -> ScoreBundle |
 
 
 def run_memae_from_checkpoint(context: RunContext, seed: int) -> ScoreBundle:
-    paths = memae_source_paths(seed)
+    paths = memae_source_paths(seed, source_artifacts_root(context))
     checkpoint = paths["checkpoint"]
     if not checkpoint.exists():
         raise FileNotFoundError(
@@ -2080,6 +2470,8 @@ def build_report_md(rows: list[dict[str, Any]], context: RunContext) -> str:
         "- Added `scripts/eval_paderborn_baselines_unified.py` as a shared healthy-only runner for Paderborn baselines.",
         "- Added common data discovery, deterministic seeding, scoring, validation-only threshold calibration, metrics, and reporting.",
         "- Implemented `ocsvm`, `isolation_forest`, `compact_ae`, `resdilated_ae`, `conv_vae`, and `deep_svdd` through a model registry pattern.",
+        "- `ocsvm_rbf` adds a Nystroem RBF feature map before `SGDOneClassSVM` (the `ocsvm` model is linear); "
+        "`classical` scores RMS, kurtosis, crest factor and envelope energy by Ledoit-Wolf Mahalanobis distance.",
         "- ConvVAE reuses existing `scripts/train_generative_upgrades.py` model and checkpoint-scoring helpers.",
         "- Deep SVDD uses a compact 1D-CNN encoder, fixed healthy-train center, and squared distance-to-center anomaly scores.",
         "",
@@ -2128,11 +2520,15 @@ def build_report_md(rows: list[dict[str, Any]], context: RunContext) -> str:
     return "\n".join(lines)
 
 
+def runner_report_path(args: argparse.Namespace) -> Path:
+    # Only the default output root refreshes the tracked project report; other roots keep it alongside their outputs.
+    if Path(args.output_root).resolve() == DEFAULT_OUTPUT_ROOT.resolve():
+        return PROJECT_ROOT / "reports" / "paderborn" / "baselines" / "paderborn_unified_baseline_runner.md"
+    return Path(args.output_root) / "paderborn_unified_baseline_runner.md"
+
+
 def write_report(rows: list[dict[str, Any]], context: RunContext) -> None:
-    write_text(
-        PROJECT_ROOT / "reports" / "paderborn" / "baselines" / "paderborn_unified_baseline_runner.md",
-        build_report_md(rows, context),
-    )
+    write_text(runner_report_path(context.args), build_report_md(rows, context))
 
 
 def run_model_seed(
@@ -2184,6 +2580,7 @@ def main() -> int:
     args.processed_root = args.processed_root.resolve()
     args.metadata_root = args.metadata_root.resolve()
     args.output_root = args.output_root.resolve()
+    args.source_artifacts_root = args.source_artifacts_root.resolve()
     args.output_root.mkdir(parents=True, exist_ok=True)
 
     models = expand_models(args.models)
@@ -2205,7 +2602,9 @@ def main() -> int:
 
     registry: dict[str, Callable[[RunContext, int, dict[str, Any]], ScoreBundle]] = {
         "ocsvm": run_ocsvm,
+        "ocsvm_rbf": run_ocsvm_rbf,
         "isolation_forest": run_isolation_forest,
+        "classical": run_classical,
         "compact_ae": run_compact_ae,
         "resdilated_ae": run_resdilated_ae,
         "conv_vae": run_conv_vae,

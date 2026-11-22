@@ -1,0 +1,31 @@
+{
+  "method": "zscore_global",
+  "fit_split": "train",
+  "fit_condition": "healthy",
+  "mean": -0.014266629828585259,
+  "std": 0.25400125666053047,
+  "num_train_windows": 57999,
+  "window_size": 2048,
+  "num_train_samples": 118781952,
+  "output_dtype": "float32",
+  "signal_channel": "vibration_1",
+  "protocol": "unseen_bearing",
+  "fold": 2,
+  "fit_bearings": [
+    "K002",
+    "K003",
+    "K004"
+  ],
+  "fit_conditions": [
+    "N09_M07_F10",
+    "N15_M01_F10",
+    "N15_M07_F04",
+    "N15_M07_F10"
+  ],
+  "refit_from": {
+    "source_normalization_stats": "data/metadata/paderborn/normalization_stats.json",
+    "source_mean": -0.015629497962557828,
+    "source_std": 0.29467682173695553,
+    "rule": "raw = x_source * source_std + source_mean; x_fold = (raw - mean) / std"
+  }
+}
