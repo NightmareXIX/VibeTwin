@@ -1,0 +1,55 @@
+{
+  "dataset": "paderborn",
+  "file_map_path": "data/metadata/paderborn/file_map.csv",
+  "raw_root": "data/raw/paderborn",
+  "processed_root": "data/processed/paderborn_v3/unseen_bearing/fold_1",
+  "metadata_root": "data/metadata/paderborn_v3/unseen_bearing/fold_1",
+  "channel": "vibration_1",
+  "window_size": 2048,
+  "stride": 1024,
+  "guard_gap": 2048,
+  "split_ratios": {
+    "train": 0.7,
+    "val": 0.15,
+    "test": 0.15
+  },
+  "normalization": {
+    "method": "zscore_global",
+    "fit_on": "healthy_train_only",
+    "fit_scope": "unseen_bearing/fold_1 healthy-train windows (refit; source normalization undone)"
+  },
+  "dtype": "float32",
+  "seed": 42,
+  "fault_label_map": {
+    "KA": 0,
+    "KB": 1,
+    "KI": 2
+  },
+  "label_verification_policy": {
+    "verified_labels_used": 0,
+    "inferred_labels_used": 2559,
+    "inference_rule": "K0xx=healthy, KA/KB/KI=damaged families",
+    "support_pdf_parsed": false
+  },
+  "transfer_protocol": {
+    "protocol": "unseen_bearing",
+    "fold": 1,
+    "description": "Unseen healthy bearing: train on K006/K001/K002, validate on K005, test healthy on K003/K004 (each bearing contributes all of its main-protocol train/val/test healthy windows); test fault = every fault window.",
+    "train_bearings": [
+      "K001",
+      "K002",
+      "K006"
+    ],
+    "val_bearings": [
+      "K005"
+    ],
+    "test_bearings": [
+      "K003",
+      "K004"
+    ],
+    "source_processed_root": "data/processed/paderborn",
+    "source_metadata_root": "data/metadata/paderborn",
+    "builder": "scripts/build_paderborn_transfer_splits.py",
+    "note": "window_size/stride/guard_gap/split_ratios describe the main-protocol windowing these windows come from."
+  }
+}

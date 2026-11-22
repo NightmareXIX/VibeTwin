@@ -1,0 +1,12 @@
+{
+  "integer_to_class": {
+    "0": "ball",
+    "1": "inner_race",
+    "2": "outer_race_6"
+  },
+  "class_to_integer": {
+    "ball": 0,
+    "inner_race": 1,
+    "outer_race_6": 2
+  }
+}

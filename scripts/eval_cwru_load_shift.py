@@ -35,12 +35,32 @@ from train_shallow_baselines import (
     evaluate_scores as evaluate_shallow_scores,
     extract_features,
 )
+# Shared with the Paderborn runner so both datasets use the identical classical feature/score definition.
+from eval_paderborn_baselines_unified import (
+    CLASSICAL_FEATURE_NAMES,
+    classical_mahalanobis_scores,
+    design_classical_bandpass,
+    extract_classical_features_chunked,
+    fit_classical_mahalanobis,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PROCESSED_ROOT = PROJECT_ROOT / "data" / "processed" / "cwru"
 METADATA_ROOT = PROJECT_ROOT / "data" / "metadata" / "cwru"
 ARTIFACTS_ROOT = PROJECT_ROOT / "artifacts"
+# CLI model name -> display name used as the key in metrics JSON, report tables and plots.
+MODEL_DISPLAY_NAMES = {
+    "ae": "AE",
+    "ocsvm": "OC-SVM",
+    "isolation_forest": "Isolation Forest",
+    "classical": "Classical CM",
+}
+DEFAULT_CLI_MODELS = ("ae", "ocsvm", "isolation_forest")
+# The 12k drive-end fault files are 12 kHz. NOTE: the CWRU normal-baseline files (97-100) are recorded at
+# 48 kHz and are not resampled by preprocess_cwru.py, so a single rate is only exact for the fault windows.
+CWRU_CLASSICAL_FS_HZ = 12000.0
+CWRU_ENVELOPE_BAND_HZ = (1000.0, 5000.0)
 
 
 @dataclass(frozen=True)
@@ -80,6 +100,27 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--processed-root", type=Path, default=PROCESSED_ROOT)
     parser.add_argument("--metadata-root", type=Path, default=METADATA_ROOT)
     parser.add_argument("--artifacts-root", type=Path, default=ARTIFACTS_ROOT)
+    parser.add_argument(
+        "--models",
+        nargs="+",
+        choices=(*MODEL_DISPLAY_NAMES, "all"),
+        default=list(DEFAULT_CLI_MODELS),
+        help="Models to run (default: ae ocsvm isolation_forest; 'all' adds classical).",
+    )
+    parser.add_argument(
+        "--classical-fs",
+        type=float,
+        default=CWRU_CLASSICAL_FS_HZ,
+        help="Sampling rate (Hz) used to design the classical envelope band-pass.",
+    )
+    parser.add_argument("--classical-band-low-hz", type=float, default=CWRU_ENVELOPE_BAND_HZ[0])
+    parser.add_argument("--classical-band-high-hz", type=float, default=CWRU_ENVELOPE_BAND_HZ[1])
+    parser.add_argument(
+        "--classical-filter-order",
+        type=int,
+        default=4,
+        help="Butterworth order N passed to scipy.signal.butter for the zero-phase envelope band-pass.",
+    )
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--learning-rate", type=float, default=1e-3)
@@ -89,6 +130,13 @@ def parse_args() -> argparse.Namespace:
         choices=("mean_plus_3std",),
         default="mean_plus_3std",
         help="Threshold rule applied on healthy validation scores inside each fold.",
+    )
+    parser.add_argument(
+        "--healthy-test-scope",
+        choices=("test_split", "full_recording"),
+        default="test_split",
+        help="Healthy test windows of the held-out load: its test split only (original protocol) "
+        "or its whole healthy recording, which the fold never trains or calibrates on.",
     )
     parser.add_argument(
         "--psd-band-count",
@@ -218,6 +266,7 @@ def build_fold_dataset(
     raw_test_healthy: IndexedWindows,
     raw_test_fault: IndexedWindows,
     fault_labels: np.ndarray,
+    healthy_test_scope: str = "test_split",
 ) -> FoldDataset:
     train_mask = raw_train_healthy.load_hp != held_out_load_hp
     val_mask = raw_val_healthy.load_hp != held_out_load_hp
@@ -226,7 +275,22 @@ def build_fold_dataset(
 
     train_raw = raw_train_healthy.windows[train_mask]
     val_raw = raw_val_healthy.windows[val_mask]
-    test_healthy_raw = raw_test_healthy.windows[test_healthy_mask]
+    if healthy_test_scope == "test_split":
+        test_healthy_raw = raw_test_healthy.windows[test_healthy_mask]
+    elif healthy_test_scope == "full_recording":
+        # The held-out load's healthy recording is never used for training or calibration in
+        # this fold, so all of its windows (train, val and test regions, in recording order)
+        # can serve as healthy test data without leakage.
+        test_healthy_raw = np.concatenate(
+            [
+                raw_train_healthy.windows[~train_mask],
+                raw_val_healthy.windows[~val_mask],
+                raw_test_healthy.windows[test_healthy_mask],
+            ],
+            axis=0,
+        )
+    else:
+        raise ValueError(f"Unknown healthy_test_scope: {healthy_test_scope!r}")
     test_fault_raw = raw_test_fault.windows[test_fault_mask]
     fold_fault_labels = fault_labels[test_fault_mask]
 
@@ -350,6 +414,7 @@ def train_and_evaluate_shallow_models(
     iforest_max_samples: int,
     iforest_n_jobs: int,
     seed: int,
+    model_names: tuple[str, ...] = ("OC-SVM", "Isolation Forest"),
 ) -> dict[str, dict[str, Any]]:
     feature_config = build_feature_config(window_size, psd_band_count)
     train_features_raw = extract_features(fold.train_healthy, feature_config)
@@ -376,6 +441,8 @@ def train_and_evaluate_shallow_models(
 
     results: dict[str, dict[str, Any]] = {}
     for model_name, model in models.items():
+        if model_name not in model_names:
+            continue
         model.fit(train_features)
         val_scores = compute_anomaly_scores(model, val_features)
         test_healthy_scores = compute_anomaly_scores(model, test_healthy_features)
@@ -413,6 +480,64 @@ def train_and_evaluate_shallow_models(
     return results
 
 
+def train_and_evaluate_classical(
+    *,
+    fold: FoldDataset,
+    threshold_rule: str,
+    fs_hz: float,
+    band_hz: tuple[float, float],
+    filter_order: int,
+) -> dict[str, Any]:
+    """Classical CM baseline: RMS, kurtosis, crest factor, envelope energy -> Ledoit-Wolf Mahalanobis distance.
+
+    Features are computed on the fold's recorded-signal windows (the fold z-score is undone) and the model is fit on
+    the fold's healthy-train windows only. Deterministic: the seed has no effect.
+    """
+    sos = design_classical_bandpass(fs_hz, band_hz[0], band_hz[1], filter_order)
+    affine = {"signal_scale": fold.fold_std, "signal_offset": fold.fold_mean}
+    chunk_size = 4096
+    train_features = extract_classical_features_chunked(fold.train_healthy, sos, chunk_size, "train_healthy", **affine)
+    val_features = extract_classical_features_chunked(fold.val_healthy, sos, chunk_size, "val_healthy", **affine)
+    test_healthy_features = extract_classical_features_chunked(
+        fold.test_healthy, sos, chunk_size, "test_healthy", **affine
+    )
+    test_fault_features = extract_classical_features_chunked(fold.test_fault, sos, chunk_size, "test_fault", **affine)
+
+    scaler, covariance = fit_classical_mahalanobis(train_features)
+    val_scores = classical_mahalanobis_scores(scaler, covariance, val_features)
+    test_healthy_scores = classical_mahalanobis_scores(scaler, covariance, test_healthy_features)
+    test_fault_scores = classical_mahalanobis_scores(scaler, covariance, test_fault_features)
+    threshold_meta = select_score_threshold(val_scores, threshold_rule)
+    metrics = evaluate_shallow_scores(
+        threshold=float(threshold_meta["threshold"]),
+        test_healthy_scores=test_healthy_scores,
+        test_fault_scores=test_fault_scores,
+    )
+    return {
+        "metrics": {
+            **metrics,
+            "threshold": float(threshold_meta["threshold"]),
+            "feature_count": int(train_features.shape[1]),
+        },
+        "threshold_meta": threshold_meta,
+        "val_scores": val_scores,
+        "test_healthy_scores": test_healthy_scores,
+        "test_fault_scores": test_fault_scores,
+        "feature_names": list(CLASSICAL_FEATURE_NAMES),
+        "hyperparameters": {
+            "fs_hz": float(fs_hz),
+            "band_hz": [float(band_hz[0]), float(band_hz[1])],
+            "filter": f"butterworth_bandpass_N{int(filter_order)}_sosfiltfilt_zero_phase",
+            "kurtosis": "pearson (scipy fisher=False, bias=True)",
+            "signal_domain": "recorded_signal (fold z-score undone)",
+            "covariance": "sklearn LedoitWolf on standardized healthy-train features",
+            "ledoit_wolf_shrinkage": float(covariance.shrinkage_),
+            "score": "mahalanobis_distance (sqrt of squared distance)",
+            "deterministic": True,
+        },
+    }
+
+
 def summarize_metrics_across_folds(
     fold_results: list[dict[str, Any]],
     model_order: list[str],
@@ -442,9 +567,12 @@ def format_markdown_table(headers: list[str], rows: list[list[Any]]) -> str:
     return "\n".join(lines)
 
 
-def build_fold_table(fold_result: dict[str, Any]) -> str:
+DEFAULT_MODEL_ORDER = ["AE", "OC-SVM", "Isolation Forest"]
+
+
+def build_fold_table(fold_result: dict[str, Any], model_order: list[str] | None = None) -> str:
     rows: list[list[Any]] = []
-    for model_name in ["AE", "OC-SVM", "Isolation Forest"]:
+    for model_name in model_order or DEFAULT_MODEL_ORDER:
         metrics = fold_result["models"][model_name]["metrics"]
         rows.append(
             [
@@ -464,9 +592,12 @@ def build_fold_table(fold_result: dict[str, Any]) -> str:
     )
 
 
-def build_summary_table(summary: dict[str, dict[str, dict[str, float]]]) -> str:
+def build_summary_table(
+    summary: dict[str, dict[str, dict[str, float]]],
+    model_order: list[str] | None = None,
+) -> str:
     rows: list[list[Any]] = []
-    for model_name in ["AE", "OC-SVM", "Isolation Forest"]:
+    for model_name in model_order or DEFAULT_MODEL_ORDER:
         rows.append(
             [
                 model_name,
@@ -493,6 +624,8 @@ def build_summary_table(summary: dict[str, dict[str, dict[str, float]]]) -> str:
 
 
 def build_advantage_note(summary: dict[str, dict[str, dict[str, float]]]) -> str:
+    if "AE" not in summary:
+        return "AE was not run in this invocation; no AE-versus-baseline comparison is made."
     ae_f1 = summary["AE"]["f1"]["mean"]
     ae_far = summary["AE"]["false_alarm_rate"]["mean"]
     best_f1 = max(summary[model]["f1"]["mean"] for model in summary)
@@ -524,7 +657,15 @@ def build_report(
     summary: dict[str, dict[str, dict[str, float]]],
     advantage_note: str,
     artifact_paths: dict[str, Path],
+    model_order: list[str] | None = None,
+    healthy_test_scope: str = "test_split",
 ) -> str:
+    healthy_test_line = (
+        "- Test healthy windows come from the held-out load using the existing `test` split."
+        if healthy_test_scope == "test_split"
+        else "- Test healthy windows are the held-out load's whole healthy recording (its `train`, `val` and `test` "
+        "regions), none of which the fold trains or calibrates on."
+    )
     lines = [
         "# CWRU Load-Shift Report",
         "",
@@ -532,7 +673,7 @@ def build_report(
         "- Leave-one-load-out evaluation across the four motor loads: `0`, `1`, `2`, and `3`.",
         "- Healthy train windows come only from non-held-out loads using the existing `train` split.",
         "- Healthy validation windows come only from non-held-out loads using the existing `val` split.",
-        "- Test healthy windows come from the held-out load using the existing `test` split.",
+        healthy_test_line,
         "- Test fault windows come from the held-out load using the existing fault-test windows.",
         "- Fold-specific z-score normalization is refit on healthy train windows only after reconstructing pre-z-score values from the saved preprocessing stats.",
         f"- {source_note}",
@@ -553,7 +694,7 @@ def build_report(
                 f"- Val healthy windows: `{counts['val_healthy']}`",
                 f"- Test healthy windows: `{counts['test_healthy']}`",
                 f"- Test fault windows: `{counts['test_fault']}`",
-                build_fold_table(fold_result),
+                build_fold_table(fold_result, model_order),
                 "",
             ]
         )
@@ -561,7 +702,7 @@ def build_report(
     lines.extend(
         [
             "## Mean/Std Across Folds",
-            build_summary_table(summary),
+            build_summary_table(summary, model_order),
             "",
             "## Model Comparison",
             f"- {advantage_note}",
@@ -579,6 +720,7 @@ def build_report(
 def plot_summary(
     fold_results: list[dict[str, Any]],
     path: Path,
+    model_order: list[str] | None = None,
 ) -> None:
     metrics_to_plot = ["auroc", "auprc", "f1", "false_alarm_rate"]
     y_labels = {
@@ -587,12 +729,14 @@ def plot_summary(
         "f1": "F1",
         "false_alarm_rate": "False Alarm Rate",
     }
-    model_order = ["AE", "OC-SVM", "Isolation Forest"]
+    model_order = list(model_order or DEFAULT_MODEL_ORDER)
     colors = {
         "AE": "#1f4e79",
         "OC-SVM": "#6aa84f",
         "Isolation Forest": "#cc7a00",
+        "Classical CM": "#7f3f98",
     }
+    center_offset = (len(model_order) - 1) / 2.0
 
     loads = [fold["held_out_load_hp"] for fold in fold_results]
     x = np.arange(len(loads), dtype=np.float64)
@@ -605,7 +749,7 @@ def plot_summary(
         for model_index, model_name in enumerate(model_order):
             values = [fold["models"][model_name]["metrics"][metric_name] for fold in fold_results]
             axis.bar(
-                x + ((model_index - 1) * width),
+                x + ((model_index - center_offset) * width),
                 values,
                 width=width,
                 label=model_name,
@@ -621,7 +765,7 @@ def plot_summary(
             axis.set_ylim(0.0, 1.05)
 
     handles, labels = axes[0].get_legend_handles_labels()
-    figure.legend(handles, labels, loc="upper center", ncol=3, frameon=False)
+    figure.legend(handles, labels, loc="upper center", ncol=max(len(model_order), 1), frameon=False)
     figure.suptitle("CWRU Leave-One-Load-Out Summary", fontsize=13)
     figure.tight_layout(rect=(0.0, 0.0, 1.0, 0.94))
     figure.savefig(path)
@@ -661,6 +805,14 @@ def make_json_ready_fold_results(fold_results: list[dict[str, Any]]) -> list[dic
 def main() -> int:
     require_torch()
     args = parse_args()
+    selected_cli_models = list(MODEL_DISPLAY_NAMES) if "all" in args.models else list(dict.fromkeys(args.models))
+    # Keep the canonical AE, OC-SVM, Isolation Forest, Classical CM order regardless of CLI order.
+    model_order = [MODEL_DISPLAY_NAMES[name] for name in MODEL_DISPLAY_NAMES if name in selected_cli_models]
+    shallow_model_names = tuple(name for name in ("OC-SVM", "Isolation Forest") if name in model_order)
+    classical_band_hz = (float(args.classical_band_low_hz), float(args.classical_band_high_hz))
+    if "Classical CM" in model_order:
+        # Fail fast on an invalid band/sampling-rate combination before any fold work.
+        design_classical_bandpass(args.classical_fs, *classical_band_hz, args.classical_filter_order)
 
     processed_root = args.processed_root.resolve()
     metadata_root = args.metadata_root.resolve()
@@ -749,27 +901,42 @@ def main() -> int:
             raw_test_healthy=raw_test_healthy,
             raw_test_fault=raw_test_fault,
             fault_labels=fault_labels,
+            healthy_test_scope=args.healthy_test_scope,
         )
 
-        ae_result = train_and_evaluate_ae(
-            fold=fold,
-            batch_size=args.batch_size,
-            epochs=args.epochs,
-            learning_rate=args.learning_rate,
-            threshold_rule=args.threshold_rule,
-            seed=args.seed,
-        )
-        shallow_results = train_and_evaluate_shallow_models(
-            fold=fold,
-            window_size=expected_width,
-            psd_band_count=args.psd_band_count,
-            threshold_rule=args.threshold_rule,
-            ocsvm_nu=args.ocsvm_nu,
-            iforest_n_estimators=args.iforest_n_estimators,
-            iforest_max_samples=args.iforest_max_samples,
-            iforest_n_jobs=args.iforest_n_jobs,
-            seed=args.seed,
-        )
+        fold_models: dict[str, dict[str, Any]] = {}
+        if "AE" in model_order:
+            fold_models["AE"] = train_and_evaluate_ae(
+                fold=fold,
+                batch_size=args.batch_size,
+                epochs=args.epochs,
+                learning_rate=args.learning_rate,
+                threshold_rule=args.threshold_rule,
+                seed=args.seed,
+            )
+        if shallow_model_names:
+            fold_models.update(
+                train_and_evaluate_shallow_models(
+                    fold=fold,
+                    window_size=expected_width,
+                    psd_band_count=args.psd_band_count,
+                    threshold_rule=args.threshold_rule,
+                    ocsvm_nu=args.ocsvm_nu,
+                    iforest_n_estimators=args.iforest_n_estimators,
+                    iforest_max_samples=args.iforest_max_samples,
+                    iforest_n_jobs=args.iforest_n_jobs,
+                    seed=args.seed,
+                    model_names=shallow_model_names,
+                )
+            )
+        if "Classical CM" in model_order:
+            fold_models["Classical CM"] = train_and_evaluate_classical(
+                fold=fold,
+                threshold_rule=args.threshold_rule,
+                fs_hz=args.classical_fs,
+                band_hz=classical_band_hz,
+                filter_order=args.classical_filter_order,
+            )
 
         fold_result = {
             "held_out_load_hp": held_out_load_hp,
@@ -778,31 +945,20 @@ def main() -> int:
                 "mean": fold.fold_mean,
                 "std": fold.fold_std,
             },
-            "models": {
-                "AE": ae_result,
-                "OC-SVM": shallow_results["OC-SVM"],
-                "Isolation Forest": shallow_results["Isolation Forest"],
-            },
+            "models": {model_name: fold_models[model_name] for model_name in model_order},
         }
         fold_results.append(fold_result)
 
-        print(
-            f"  AE: f1={ae_result['metrics']['f1']:.6f}, "
-            f"false_alarm_rate={ae_result['metrics']['false_alarm_rate']:.6f}"
-        )
-        print(
-            f"  OC-SVM: f1={shallow_results['OC-SVM']['metrics']['f1']:.6f}, "
-            f"false_alarm_rate={shallow_results['OC-SVM']['metrics']['false_alarm_rate']:.6f}"
-        )
-        print(
-            f"  Isolation Forest: f1={shallow_results['Isolation Forest']['metrics']['f1']:.6f}, "
-            f"false_alarm_rate={shallow_results['Isolation Forest']['metrics']['false_alarm_rate']:.6f}"
-        )
+        for model_name in model_order:
+            print(
+                f"  {model_name}: f1={fold_models[model_name]['metrics']['f1']:.6f}, "
+                f"false_alarm_rate={fold_models[model_name]['metrics']['false_alarm_rate']:.6f}"
+            )
 
     metric_names = ["auroc", "auprc", "f1", "precision", "recall_fault", "false_alarm_rate"]
     summary = summarize_metrics_across_folds(
         fold_results=fold_results,
-        model_order=["AE", "OC-SVM", "Isolation Forest"],
+        model_order=model_order,
         metric_names=metric_names,
     )
     advantage_note = build_advantage_note(summary)
@@ -819,7 +975,12 @@ def main() -> int:
             "held_out_loads": held_out_loads,
             "healthy_train_source": "existing train split from non-held-out loads only",
             "healthy_val_source": "existing val split from non-held-out loads only",
-            "healthy_test_source": "existing test split from held-out load only",
+            "healthy_test_source": (
+                "existing test split from held-out load only"
+                if args.healthy_test_scope == "test_split"
+                else "whole healthy recording (train, val and test regions) of held-out load only"
+            ),
+            "healthy_test_scope": args.healthy_test_scope,
             "fault_test_source": "existing fault test windows from held-out load only",
             "threshold_rule": args.threshold_rule,
             "fold_specific_renormalization": {
@@ -850,6 +1011,20 @@ def main() -> int:
             "feature_pipeline": {
                 "psd_band_count": int(args.psd_band_count),
             },
+            **(
+                {
+                    "classical": {
+                        "features": list(CLASSICAL_FEATURE_NAMES),
+                        "fs_hz": float(args.classical_fs),
+                        "band_hz": list(classical_band_hz),
+                        "filter_order": int(args.classical_filter_order),
+                        "score": "ledoit_wolf_mahalanobis_distance_to_healthy_train",
+                    }
+                }
+                if "Classical CM" in model_order
+                else {}
+            ),
+            "models_run": model_order,
             "seed": int(args.seed),
         },
         "source_note": source_note,
@@ -868,12 +1043,14 @@ def main() -> int:
         summary=summary,
         advantage_note=advantage_note,
         artifact_paths=artifact_paths,
+        model_order=model_order,
+        healthy_test_scope=args.healthy_test_scope,
     )
     artifact_paths["report"].write_text(report_text, encoding="utf-8")
-    plot_summary(fold_results, artifact_paths["plot"])
+    plot_summary(fold_results, artifact_paths["plot"], model_order)
 
     print("\nLoad-shift mean/std summary")
-    for model_name in ["AE", "OC-SVM", "Isolation Forest"]:
+    for model_name in model_order:
         print(
             f"  {model_name}: "
             f"F1={summary[model_name]['f1']['mean']:.6f}+/-{summary[model_name]['f1']['std']:.6f}, "

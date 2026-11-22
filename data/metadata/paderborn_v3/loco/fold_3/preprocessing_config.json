@@ -1,0 +1,49 @@
+{
+  "dataset": "paderborn",
+  "file_map_path": "data/metadata/paderborn/file_map.csv",
+  "raw_root": "data/raw/paderborn",
+  "processed_root": "data/processed/paderborn_v3/loco/fold_3",
+  "metadata_root": "data/metadata/paderborn_v3/loco/fold_3",
+  "channel": "vibration_1",
+  "window_size": 2048,
+  "stride": 1024,
+  "guard_gap": 2048,
+  "split_ratios": {
+    "train": 0.7,
+    "val": 0.15,
+    "test": 0.15
+  },
+  "normalization": {
+    "method": "zscore_global",
+    "fit_on": "healthy_train_only",
+    "fit_scope": "loco/fold_3 healthy-train windows (refit; source normalization undone)"
+  },
+  "dtype": "float32",
+  "seed": 42,
+  "fault_label_map": {
+    "KA": 0,
+    "KB": 1,
+    "KI": 2
+  },
+  "label_verification_policy": {
+    "verified_labels_used": 0,
+    "inferred_labels_used": 2559,
+    "inference_rule": "K0xx=healthy, KA/KB/KI=damaged families",
+    "support_pdf_parsed": false
+  },
+  "transfer_protocol": {
+    "protocol": "loco",
+    "fold": 3,
+    "description": "Leave-one-condition-out: hold out N15_M07_F10. Train/val = main-protocol train/val healthy windows of the other three conditions; test healthy = every healthy window of N15_M07_F10 (main train+val+test regions); test fault = every fault window of N15_M07_F10.",
+    "held_out_condition": "N15_M07_F10",
+    "train_val_conditions": [
+      "N09_M07_F10",
+      "N15_M01_F10",
+      "N15_M07_F04"
+    ],
+    "source_processed_root": "data/processed/paderborn",
+    "source_metadata_root": "data/metadata/paderborn",
+    "builder": "scripts/build_paderborn_transfer_splits.py",
+    "note": "window_size/stride/guard_gap/split_ratios describe the main-protocol windowing these windows come from."
+  }
+}
